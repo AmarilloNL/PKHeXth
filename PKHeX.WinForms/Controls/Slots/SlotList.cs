@@ -149,7 +149,8 @@ public partial class SlotList : UserControl, ISlotViewer<PictureBox>
 
     private static SelectablePictureBox GetPictureBox(SpriteBuilder s, string name) => new()
     {
-        BorderStyle = BorderStyle.FixedSingle,
+        BorderStyle = BorderStyle.None,
+        DrawTile = true,
         Width = s.Width + 2,
         Height = s.Height + 2,
         AllowDrop = true,

@@ -37,7 +37,8 @@ public partial class PokeGrid : UserControl
     }
 
     private const int padEdge = 1; // edges
-    private const int border = 1; // between
+    private const int border = 1; // tile inset around the sprite
+    private const int gap = 4; // between tiles
 
     private void Generate(int width, int height)
     {
@@ -53,19 +54,19 @@ public partial class PokeGrid : UserControl
         Location = Location with { X = 0 }; // prevent auto-expanding parent if position changes (centered)
         for (int row = 0; row < height; row++)
         {
-            var y = padEdge + (row * (rowHeight + border));
+            var y = padEdge + (row * (rowHeight + (2 * border) + gap));
             for (int column = 0; column < width; column++)
             {
                 var name = $"Pokémon Grid Row {row:00} Column {column:00}";
-                var x = padEdge + (column * (colWidth + border));
+                var x = padEdge + (column * (colWidth + (2 * border) + gap));
                 var pb = GetControl(sizeW, sizeH, name);
                 pb.Location = new Point(x, y);
                 Entries.Add(pb);
             }
         }
 
-        int w = (2 * padEdge) + border + (width * (colWidth + border));
-        int h = (2 * padEdge) + border + (height * (rowHeight + border));
+        int w = (2 * padEdge) - gap + (width * (colWidth + (2 * border) + gap));
+        int h = (2 * padEdge) - gap + (height * (rowHeight + (2 * border) + gap));
         Size = new Size(w, h);
         Controls.AddRange(Entries.Cast<Control>().ToArray());
         ResumeLayout();
@@ -82,7 +83,8 @@ public partial class PokeGrid : UserControl
         Height = height + (2 * border),
         Padding = Padding.Empty,
         Margin = Padding.Empty,
-        BorderStyle = BorderStyle.FixedSingle,
+        BorderStyle = BorderStyle.None,
+        DrawTile = true,
         AccessibleRole = AccessibleRole.Alert,
         Name = name,
         AccessibleName = name,

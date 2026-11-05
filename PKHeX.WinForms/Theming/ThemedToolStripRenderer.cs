@@ -13,7 +13,9 @@ internal sealed class ThemedToolStripRenderer : ToolStripProfessionalRenderer
     protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
     {
         var p = Theme.Current;
-        var bg = e.ToolStrip is ContextMenuStrip or ToolStripDropDown ? p.Surface1 : p.Surface0;
+        var bg = e.ToolStrip is ContextMenuStrip or ToolStripDropDown ? p.Surface1
+            : e.ToolStrip.Parent is { BackColor.A: 255 } host ? host.BackColor
+            : p.Surface0;
         using var brush = new SolidBrush(bg);
         e.Graphics.FillRectangle(brush, e.AffectedBounds);
     }

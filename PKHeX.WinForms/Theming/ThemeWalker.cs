@@ -44,15 +44,22 @@ internal static class ThemeWalker
                 break;
 
             case MenuStrip ms:
-                ms.BackColor = p.Surface0;
+                ms.BackColor = ms.Parent is { BackColor.A: 255 } host ? host.BackColor : p.Surface0;
                 ms.ForeColor = p.TextPrimary;
                 foreach (ToolStripItem i in ms.Items)
                     StyleMenuItem(i, p);
                 break;
 
             case StatusStrip ss:
-                ss.BackColor = p.Surface1;
-                ss.ForeColor = p.TextPrimary;
+                ss.BackColor = p.Canvas;
+                ss.RenderMode = ToolStripRenderMode.ManagerRenderMode;
+                ss.ForeColor = p.TextMuted;
+                foreach (ToolStripItem i in ss.Items)
+                {
+                    i.BackColor = p.Canvas;
+                    if (i.ForeColor.IsSystemColor || i.ForeColor == p.TextPrimary)
+                        i.ForeColor = p.TextMuted;
+                }
                 break;
 
             case ToolStrip ts:
@@ -63,14 +70,7 @@ internal static class ThemeWalker
                 break;
 
             case TabControl tc:
-                tc.BackColor = p.Surface1;
-                tc.ForeColor = p.TextPrimary;
-                foreach (TabPage tp in tc.TabPages)
-                {
-                    tp.UseVisualStyleBackColor = false;
-                    tp.BackColor = p.Surface1;
-                    tp.ForeColor = p.TextPrimary;
-                }
+                TabPainter.Attach(tc, p);
                 break;
 
             case GroupBox gb:
@@ -87,6 +87,9 @@ internal static class ThemeWalker
                 btn.BackColor = p.Surface1;
                 btn.ForeColor = p.TextPrimary;
                 btn.UseVisualStyleBackColor = false;
+                if (btn.BackgroundImage is null && _themedButtons.TryAdd(btn, _sentinel))
+                    btn.Paint += PaintThemedButton;
+                btn.Invalidate();
                 break;
 
             case CheckBox cb:
@@ -131,7 +134,19 @@ internal static class ThemeWalker
             case ComboBox cbx:
                 cbx.BackColor = p.Surface1;
                 cbx.ForeColor = p.TextPrimary;
-                cbx.FlatStyle = FlatStyle.Flat;
+                // Native chrome reads better for editable combos, but native list-only combos can render with the
+                // light system theme in dark mode, so those are flat + owner-drawn.
+                if (cbx.DropDownStyle != ComboBoxStyle.DropDownList)
+                {
+                    cbx.FlatStyle = FlatStyle.Standard;
+                }
+                else if (cbx.DrawMode == DrawMode.Normal || _themedCombos.TryGetValue(cbx, out _))
+                {
+                    cbx.FlatStyle = FlatStyle.Flat;
+                    cbx.DrawMode = DrawMode.OwnerDrawFixed;
+                    if (_themedCombos.TryAdd(cbx, _sentinel))
+                        cbx.DrawItem += DrawThemedComboItem;
+                }
                 break;
 
             case ListBox lb:
@@ -177,9 +192,9 @@ internal static class ThemeWalker
                 break;
 
             case SplitContainer sc:
-                sc.BackColor = p.Border;
-                sc.Panel1.BackColor = p.Surface0;
-                sc.Panel2.BackColor = p.Surface0;
+                sc.BackColor = p.Canvas;
+                sc.Panel1.BackColor = p.Canvas;
+                sc.Panel2.BackColor = p.Canvas;
                 break;
 
             case ProgressBar pb:
@@ -265,6 +280,85 @@ internal static class ThemeWalker
 
     private static readonly ConditionalWeakTable<CheckBox, object> _themedCheckBoxes = new();
     private static readonly ConditionalWeakTable<RadioButton, object> _themedRadioButtons = new();
+    private static readonly ConditionalWeakTable<Button, object> _themedButtons = new();
+    private static readonly ConditionalWeakTable<ComboBox, object> _themedCombos = new();
+
+    private static void DrawThemedComboItem(object? sender, DrawItemEventArgs e)
+    {
+        if (sender is not ComboBox cb)
+            return;
+        var p = Theme.Current;
+        bool edit = (e.State & DrawItemState.ComboBoxEdit) != 0;
+        bool selected = !edit && (e.State & DrawItemState.Selected) != 0;
+        var back = selected ? p.Accent : cb.BackColor;
+        var fore = !cb.Enabled ? p.TextDisabled : selected ? p.AccentText : cb.ForeColor;
+        using (var bg = new SolidBrush(back))
+            e.Graphics.FillRectangle(bg, e.Bounds);
+        if ((uint)e.Index >= (uint)cb.Items.Count)
+            return;
+        var text = cb.GetItemText(cb.Items[e.Index]);
+        var r = Rectangle.FromLTRB(e.Bounds.X + 3, e.Bounds.Y, e.Bounds.Right - 2, e.Bounds.Bottom);
+        TextRenderer.DrawText(e.Graphics, text, e.Font ?? cb.Font, r, fore,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+    }
+
+    // Repaints a flat button as a rounded pill-ish surface: fill, 1px border, image + text.
+    private static void PaintThemedButton(object? sender, PaintEventArgs e)
+    {
+        if (sender is not Button b)
+            return;
+        var p = Theme.Current;
+        var g = e.Graphics;
+        var r = b.ClientRectangle;
+        if (r.Width < 4 || r.Height < 4)
+            return;
+
+        using (var parent = new SolidBrush(ResolveParentBack(b, p)))
+            g.FillRectangle(parent, r);
+
+        bool hover = b.Enabled && r.Contains(b.PointToClient(Cursor.Position));
+        bool pressed = hover && (Control.MouseButtons & MouseButtons.Left) != 0;
+        var baseFill = b.BackColor.A == 0 ? p.Surface1 : b.BackColor;
+        var fill = !b.Enabled ? p.Mix(baseFill, ResolveParentBack(b, p), 0.5f)
+            : pressed ? p.PressedSurface
+            : hover ? p.Mix(baseFill, p.TextPrimary, 0.08f)
+            : baseFill;
+        var border = b.Focused ? p.Accent : hover ? p.Mix(p.Border, p.TextPrimary, 0.15f) : p.Border;
+        int radius = Math.Min(b.LogicalToDeviceUnits(6), r.Height / 2);
+        Shapes.Fill(g, new Rectangle(0, 0, r.Width - 1, r.Height - 1), radius, fill, border);
+
+        var content = Rectangle.Inflate(r, -3, -1);
+        bool hasText = !string.IsNullOrEmpty(b.Text);
+        if (b.Image is { } img)
+        {
+            int x = hasText ? content.X + 2 : (r.Width - img.Width) / 2;
+            int y = (r.Height - img.Height) / 2;
+            if (b.Enabled)
+                g.DrawImage(img, x, y, img.Width, img.Height);
+            else
+                ControlPaint.DrawImageDisabled(g, img, x, y, fill);
+            if (hasText)
+                content = Rectangle.FromLTRB(x + img.Width + 2, content.Top, content.Right, content.Bottom);
+        }
+        if (!hasText)
+            return;
+
+        var flags = TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | (b.UseMnemonic ? 0 : TextFormatFlags.NoPrefix);
+        flags |= b.TextAlign switch
+        {
+            ContentAlignment.TopLeft => TextFormatFlags.Top | TextFormatFlags.Left,
+            ContentAlignment.TopCenter => TextFormatFlags.Top | TextFormatFlags.HorizontalCenter,
+            ContentAlignment.TopRight => TextFormatFlags.Top | TextFormatFlags.Right,
+            ContentAlignment.MiddleLeft => TextFormatFlags.VerticalCenter | TextFormatFlags.Left,
+            ContentAlignment.MiddleRight => TextFormatFlags.VerticalCenter | TextFormatFlags.Right,
+            ContentAlignment.BottomLeft => TextFormatFlags.Bottom | TextFormatFlags.Left,
+            ContentAlignment.BottomCenter => TextFormatFlags.Bottom | TextFormatFlags.HorizontalCenter,
+            ContentAlignment.BottomRight => TextFormatFlags.Bottom | TextFormatFlags.Right,
+            _ => TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter,
+        };
+        var text = !b.Enabled ? p.TextDisabled : b.ForeColor.IsSystemColor ? p.TextPrimary : b.ForeColor;
+        TextRenderer.DrawText(g, b.Text, b.Font, content, text, flags);
+    }
     private static readonly object _sentinel = new();
 
     private static void StyleCheckBox(CheckBox cb, ThemePalette p)
@@ -317,10 +411,7 @@ internal static class ThemeWalker
             g.FillRectangle(bg, Rectangle.Inflate(box, 2, 2));
 
         var fill = cb.Checked ? pal.Accent : pal.Surface1;
-        using (var fillBrush = new SolidBrush(fill))
-            g.FillRectangle(fillBrush, box);
-        using (var pen = new Pen(pal.Border))
-            g.DrawRectangle(pen, box.X, box.Y, box.Width - 1, box.Height - 1);
+        Shapes.Fill(g, box with { Width = box.Width - 1, Height = box.Height - 1 }, 3, fill, cb.Checked ? pal.Accent : pal.TextDisabled);
 
         if (cb.CheckState == CheckState.Checked)
         {

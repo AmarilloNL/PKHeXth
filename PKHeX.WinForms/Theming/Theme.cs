@@ -77,11 +77,26 @@ public static class Theme
         try
         {
             ThemeWalker.Apply(root, _current);
+            if (root is Form { IsHandleCreated: true } f)
+                TintTitleBar(f);
         }
         finally
         {
             _applying = false;
         }
+    }
+
+    // Windows 11: paint the caption in the form's own background so the title bar blends into the app.
+    // Older Windows ignores these.
+    private static void TintTitleBar(Form f)
+    {
+        if (SystemInformation.HighContrast)
+            return;
+#pragma warning disable WFO5001, WFO9001
+        f.FormCaptionBackColor = f.BackColor;
+        f.FormCaptionTextColor = _current.TextPrimary;
+        f.FormBorderColor = _current.Border;
+#pragma warning restore WFO5001, WFO9001
     }
 
     private static void ApplyColorMode()
@@ -125,6 +140,7 @@ public static class Theme
     private static ThemePalette HighContrastPalette() => new()
     {
         IsDark = SystemColors.Window.GetBrightness() < 0.5f,
+        Canvas = SystemColors.Control,
         Surface0 = SystemColors.Control,
         Surface1 = SystemColors.Window,
         Surface2 = SystemColors.ControlLight,

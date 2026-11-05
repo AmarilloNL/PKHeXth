@@ -252,17 +252,13 @@ public sealed class EditorSidebar : Control, IThemedControl
         bool selected = index == _selectedIndex;
         bool hover = index == _hoverIndex;
 
-        var fill = selected ? p.Surface2
-            : hover ? p.HoverSurface
-            : p.Surface0;
-        using (var bg = new SolidBrush(fill))
-            g.FillRectangle(bg, rect);
-
+        var pill = Rectangle.FromLTRB(rect.X + 6, rect.Y + 3, rect.Right - 6, rect.Bottom - 3);
         if (selected)
-        {
-            using var accent = new SolidBrush(p.Accent);
-            g.FillRectangle(accent, new Rectangle(rect.X, rect.Y + 4, 3, rect.Height - 8));
-        }
+            Shapes.Fill(g, pill, 8, p.Mix(p.Surface0, p.Accent, p.IsDark ? 0.18f : 0.12f));
+        else if (hover)
+            Shapes.Fill(g, pill, 8, p.HoverSurface);
+        if (selected)
+            Shapes.Fill(g, new Rectangle(pill.X, pill.Y + 8, 3, pill.Height - 16), 1, p.Accent);
 
         var item = _items[index];
         bool invalid = _invalid.Contains(item.Name);
@@ -270,7 +266,7 @@ public sealed class EditorSidebar : Control, IThemedControl
         DrawPip(g, rect, pipColor, selected, invalid, p);
         DrawLabel(g, rect, item.Text, p, selected, invalid);
 
-        if (selected && Focused)
+        if (selected && Focused && ShowFocusCues)
             DrawFocusRing(g, rect, p);
     }
 
@@ -279,7 +275,7 @@ public sealed class EditorSidebar : Control, IThemedControl
         var prev = g.SmoothingMode;
         g.SmoothingMode = SmoothingMode.AntiAlias;
 
-        int x = rect.X + 12;
+        int x = rect.X + 16;
         int y = rect.Y + ((rect.Height - PipSize) / 2);
         var dot = new Rectangle(x, y, PipSize, PipSize);
 
@@ -301,7 +297,7 @@ public sealed class EditorSidebar : Control, IThemedControl
 
     private void DrawLabel(Graphics g, Rectangle rect, string text, ThemePalette p, bool selected, bool invalid)
     {
-        int textX = rect.X + 12 + PipSize + 8;
+        int textX = rect.X + 16 + PipSize + 9;
         var textRect = new Rectangle(textX, rect.Y, rect.Right - textX - 4, rect.Height);
 
         using var flags = new StringFormat
@@ -324,9 +320,7 @@ public sealed class EditorSidebar : Control, IThemedControl
 
     private static void DrawFocusRing(Graphics g, Rectangle rect, ThemePalette p)
     {
-        var inset = Rectangle.Inflate(rect, -2, -2);
-        using var pen = new Pen(p.FocusRing, 1f) { DashStyle = DashStyle.Dot };
-        g.DrawRectangle(pen, inset);
+        Shapes.Fill(g, Rectangle.FromLTRB(rect.X + 6, rect.Y + 3, rect.Right - 7, rect.Bottom - 4), 8, Color.Empty, p.FocusRing);
     }
 
     protected override AccessibleObject CreateAccessibilityInstance() => new SidebarAccessible(this);

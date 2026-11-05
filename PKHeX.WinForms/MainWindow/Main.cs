@@ -20,11 +20,21 @@ using static PKHeX.Core.MessageStrings;
 
 namespace PKHeX.WinForms;
 
-public partial class Main : Form
+public partial class Main : Form, Theming.IThemedControl
 {
     public Main()
     {
         InitializeComponent();
+        foreach (var pane in new[] { splitContainer1.Panel1, splitContainer1.Panel2 })
+        {
+            pane.Paint += PaintCard;
+            pane.Resize += (s, _) => ((Control)s!).Invalidate();
+        }
+        // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
+        PN_HeroCard.Controls.Add(dragout);
+        EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
+        dragout.SizeChanged += centerDragout;
+        centerDragout(null, EventArgs.Empty);
         if (Settings.Display.DisableScalingDpi)
             AutoScaleMode = AutoScaleMode.Font;
         C_SAV.SetEditEnvironment(new SaveDataEditor<PictureBox>(FakeSaveFile.Default, PKME_Tabs));
@@ -38,6 +48,26 @@ public partial class Main : Form
         }
 #endif
         FormInitializeSecond();
+    }
+
+    public void ApplyTheme(Theming.ThemePalette palette)
+    {
+        BackColor = palette.Canvas;
+        ForeColor = palette.TextPrimary;
+        splitContainer1.Panel1.Invalidate();
+        splitContainer1.Panel2.Invalidate();
+    }
+
+    // Each split pane is drawn as a rounded card; the pane Padding holds the gutter plus the card inset.
+    private static void PaintCard(object? sender, PaintEventArgs e)
+    {
+        if (sender is not Control pane)
+            return;
+        var p = Theming.Theme.Current;
+        var pad = pane.Padding;
+        int inset = pane.LogicalToDeviceUnits(6);
+        var r = Rectangle.FromLTRB(pad.Left - inset, pad.Top - inset, pane.Width - pad.Right + inset - 1, pane.Height - pad.Bottom + inset - 1);
+        Theming.Shapes.Fill(e.Graphics, r, pane.LogicalToDeviceUnits(10), p.Surface0, p.Border);
     }
 
     #region Important Variables
@@ -744,7 +774,7 @@ public partial class Main : Form
             return true;
 
         Theming.Theme.OnSaveFileLoaded(sav);
-        trainerPlate.SetSave(sav);
+        topHeader.SetSave(sav);
         SL_SavePath.Text = string.IsNullOrWhiteSpace(path) ? "In-memory save" : path;
         SL_Version.Text = sav.Version.ToString();
         SL_Language.Text = ((LanguageID)sav.Language).ToString();
