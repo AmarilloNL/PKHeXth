@@ -31,8 +31,11 @@ internal static class PopupStyle
         cb.DropDown += (_, _) =>
         {
             var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf<COMBOBOXINFO>() };
-            if (GetComboBoxInfo(cb.Handle, ref info) && info.hwndList != IntPtr.Zero)
-                Apply(info.hwndList);
+            if (!GetComboBoxInfo(cb.Handle, ref info) || info.hwndList == IntPtr.Zero)
+                return;
+            Apply(info.hwndList);
+            if (Theme.Current.IsDark) // dark scrollbar in long lists
+                SetWindowTheme(info.hwndList, "DarkMode_Explorer", null);
         };
     }
 
@@ -81,5 +84,6 @@ internal static class PopupStyle
     }
 
     [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(IntPtr hwnd, ref COMBOBOXINFO info);
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] private static extern int SetWindowTheme(IntPtr hwnd, string app, string? idList);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 }

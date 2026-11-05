@@ -74,43 +74,11 @@ internal sealed class TabPainter : NativeWindow
         return -1;
     }
 
-    private const int WM_PAINT = 0x000F;
-    private const int WM_ERASEBKGND = 0x0014;
-    private const int WM_PRINTCLIENT = 0x0318;
-
     protected override void WndProc(ref Message m)
     {
-        if (m.Msg == WM_ERASEBKGND)
-        {
-            m.Result = 1;
+        if (!_tc.IsDisposed && NativePaint.TryHandle(ref m, Handle, _tc.ClientRectangle, Paint))
             return;
-        }
-        if (_tc.IsDisposed || (m.Msg != WM_PAINT && m.Msg != WM_PRINTCLIENT))
-        {
-            base.WndProc(ref m);
-            return;
-        }
-
-        if (m.WParam != IntPtr.Zero) // caller-supplied DC (WM_PRINTCLIENT, double-buffered parents)
-        {
-            using var dc = Graphics.FromHdc(m.WParam);
-            Paint(dc);
-            return;
-        }
-
-        var ps = new PAINTSTRUCT();
-        var hdc = BeginPaint(Handle, ref ps);
-        try
-        {
-            using var g = Graphics.FromHdc(hdc);
-            using var buffer = BufferedGraphicsManager.Current.Allocate(g, _tc.ClientRectangle);
-            Paint(buffer.Graphics);
-            buffer.Render(g);
-        }
-        finally
-        {
-            EndPaint(Handle, ref ps);
-        }
+        base.WndProc(ref m);
     }
 
     private void Paint(Graphics g)
@@ -180,22 +148,4 @@ internal sealed class TabPainter : NativeWindow
             Shapes.Fill(g, accent, 1, p.Accent);
         }
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PAINTSTRUCT
-    {
-        public IntPtr hdc;
-        public int fErase;
-        public int left, top, right, bottom;
-        public int fRestore;
-        public int fIncUpdate;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] rgbReserved;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
-
-    [DllImport("user32.dll")]
-    private static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
 }

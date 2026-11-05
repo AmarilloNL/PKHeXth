@@ -80,6 +80,54 @@ internal sealed class BorderPainter : NativeWindow
         }
     }
 
+    private static readonly ConditionalWeakTable<RichTextBox, object> Framed = new();
+
+    /// <summary>
+    /// Removes a rich text box's native frame, pads its text, and has the parent draw a themed rounded frame around it.
+    /// </summary>
+    public static void FrameRichText(RichTextBox rtb)
+    {
+        rtb.BorderStyle = BorderStyle.None;
+        if (!Framed.TryAdd(rtb, rtb))
+            return;
+
+        void Pad()
+        {
+            if (!rtb.IsHandleCreated || !rtb.Multiline)
+                return;
+            var r = Rectangle.Inflate(rtb.ClientRectangle, -rtb.LogicalToDeviceUnits(6), -rtb.LogicalToDeviceUnits(4));
+            var rect = new RECT { Left = r.Left, Top = r.Top, Right = r.Right, Bottom = r.Bottom };
+            SendMessage(rtb.Handle, EM_SETRECT, IntPtr.Zero, ref rect);
+        }
+        void Hook(Control? parent)
+        {
+            if (parent is null)
+                return;
+            parent.Paint += (_, e) =>
+            {
+                if (rtb.Parent != parent || !rtb.Visible)
+                    return;
+                var p = Theme.Current;
+                var frame = Rectangle.Inflate(rtb.Bounds, 1, 1);
+                frame.Width--;
+                frame.Height--;
+                Shapes.Fill(e.Graphics, frame, rtb.LogicalToDeviceUnits(4), Color.Empty, rtb.Focused ? p.Accent : p.Border);
+            };
+            parent.Invalidate();
+        }
+
+        rtb.HandleCreated += (_, _) => Pad();
+        rtb.Resize += (_, _) => Pad();
+        rtb.GotFocus += (_, _) => rtb.Parent?.Invalidate(Rectangle.Inflate(rtb.Bounds, 2, 2));
+        rtb.LostFocus += (_, _) => rtb.Parent?.Invalidate(Rectangle.Inflate(rtb.Bounds, 2, 2));
+        rtb.ParentChanged += (_, _) => Hook(rtb.Parent);
+        Hook(rtb.Parent);
+        Pad();
+    }
+
+    private const int EM_SETRECT = 0x00B3;
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr w, ref RECT r);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }
 

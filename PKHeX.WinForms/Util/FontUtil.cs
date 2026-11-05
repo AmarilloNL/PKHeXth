@@ -32,6 +32,15 @@ public static class FontUtil
         }
     }
 
+    /// <summary> Code font: Cascadia Mono (Windows 11), else Consolas, else the generic monospace family. </summary>
+    public static Font GetMonospace(float size)
+    {
+        var family = Array.Find(FontFamily.Families, f => f.Name == "Cascadia Mono")
+                     ?? Array.Find(FontFamily.Families, f => f.Name == "Consolas")
+                     ?? FontFamily.GenericMonospace;
+        return new Font(family, size);
+    }
+
     public static Font GetPKXFont(float size = 11f)
     {
         if (GeneratedFonts.TryGetValue(size, out var f))

@@ -39,42 +39,11 @@ internal sealed class DatePickerPainter : NativeWindow
         d.Invalidate();
     }
 
-    private const int WM_PAINT = 0x000F;
-    private const int WM_ERASEBKGND = 0x0014;
-    private const int WM_PRINTCLIENT = 0x0318;
-
     protected override void WndProc(ref Message m)
     {
-        if (m.Msg == WM_ERASEBKGND)
-        {
-            m.Result = 1;
+        if (!_d.IsDisposed && NativePaint.TryHandle(ref m, Handle, _d.ClientRectangle, Paint))
             return;
-        }
-        if (_d.IsDisposed || (m.Msg != WM_PAINT && m.Msg != WM_PRINTCLIENT))
-        {
-            base.WndProc(ref m);
-            return;
-        }
-        if (m.WParam != IntPtr.Zero)
-        {
-            using var dc = Graphics.FromHdc(m.WParam);
-            Paint(dc);
-            return;
-        }
-
-        var ps = new PAINTSTRUCT();
-        var hdc = BeginPaint(Handle, ref ps);
-        try
-        {
-            using var g = Graphics.FromHdc(hdc);
-            using var buffer = BufferedGraphicsManager.Current.Allocate(g, _d.ClientRectangle);
-            Paint(buffer.Graphics);
-            buffer.Render(g);
-        }
-        finally
-        {
-            EndPaint(Handle, ref ps);
-        }
+        base.WndProc(ref m);
     }
 
     private void Paint(Graphics g)
@@ -132,23 +101,7 @@ internal sealed class DatePickerPainter : NativeWindow
         => SendMessage(cal, MCM_SETCOLOR, index, c.R | (c.G << 8) | (c.B << 16));
 
     private const int DTM_GETMONTHCAL = 0x1008;
-    private const int MCM_SETCOLOR = 0x100A;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PAINTSTRUCT
-    {
-        public IntPtr hdc;
-        public int fErase;
-        public int left, top, right, bottom;
-        public int fRestore;
-        public int fIncUpdate;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] rgbReserved;
-    }
-
-    [DllImport("user32.dll")] private static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
-    [DllImport("user32.dll")] private static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
-    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr w, IntPtr l);
+    private const int MCM_SETCOLOR = 0x100A;    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int w, int l);
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] private static extern int SetWindowTheme(IntPtr hWnd, string app, string idList);
 }

@@ -125,6 +125,12 @@ internal static class ThemeWalker
                 lbl.ForeColor = lbl.Text.AsSpan().TrimEnd() is [.., ':' or '：'] ? p.TextMuted : p.TextPrimary; // captions recede, values stand out
                 break;
 
+            case RichTextBox rtb:
+                rtb.BackColor = p.Surface1;
+                rtb.ForeColor = p.TextPrimary;
+                BorderPainter.FrameRichText(rtb); // rich edit draws its own bright frame, so the parent draws one instead
+                break;
+
             case TextBox tb:
                 tb.BackColor = p.Surface1;
                 tb.ForeColor = p.TextPrimary;
@@ -147,36 +153,16 @@ internal static class ThemeWalker
                 break;
 
             case ComboBox cbx:
-                PopupStyle.Hook(cbx);
                 cbx.BackColor = p.Surface1;
                 cbx.ForeColor = p.TextPrimary;
-                // Native chrome reads better for editable combos, but native list-only combos can render with the
-                // light system theme in dark mode, so those are flat + owner-drawn.
+                cbx.FlatStyle = FlatStyle.Flat; // ComboPainter draws the frame; flat keeps the edit child on BackColor
+                if (cbx.MaxDropDownItems == 8) // designer default: show more of long lists
+                    cbx.MaxDropDownItems = 14;
                 if (cbx.DropDownStyle != ComboBoxStyle.DropDownList)
-                {
-                    // Without autocomplete the native dark chrome falls back to a white field; flat honors BackColor.
-                    cbx.FlatStyle = cbx.AutoCompleteMode == AutoCompleteMode.None ? FlatStyle.Flat : FlatStyle.Standard;
-                    if (_themedCombos.TryAdd(cbx, _sentinel))
-                    {
-                        // Editable combos keep their text selected after a programmatic change, which reads as a stray
-                        // highlight bar while unfocused.
-                        void Unselect(object? s, EventArgs e) { if (!cbx.Focused && cbx.IsHandleCreated && cbx.SelectionLength != 0) cbx.SelectionLength = 0; }
-                        // The control re-selects its text after raising SelectedIndexChanged, so clear it afterwards.
-                        cbx.SelectedIndexChanged += (s, e) => { if (cbx.IsHandleCreated) cbx.BeginInvoke(() => Unselect(s, e)); };
-                        cbx.Leave += Unselect;
-                        cbx.VisibleChanged += Unselect;
-                    }
-                    // Values loaded before theming (sub-form constructors) are still selected; clear once the control is up.
-                    if (cbx.IsHandleCreated)
-                        cbx.BeginInvoke(() => { if (!cbx.Focused && cbx.SelectionLength != 0) cbx.SelectionLength = 0; });
-                    UseThemedList(cbx); // the edit part stays native; only the drop-down rows are drawn
-                }
-                else if (cbx.DrawMode == DrawMode.Normal || _drawnCombos.TryGetValue(cbx, out _))
-                {
-                    cbx.FlatStyle = FlatStyle.Flat;
-                    UseThemedList(cbx);
-                }
-                BorderPainter.Attach(cbx);
+                    ClearStraySelection(cbx);
+                UseThemedList(cbx);
+                PopupStyle.Hook(cbx);
+                ComboPainter.Attach(cbx);
                 break;
 
             case ListBox lb:
@@ -228,8 +214,7 @@ internal static class ThemeWalker
                 break;
 
             case ProgressBar pb:
-                pb.BackColor = p.Surface2;
-                pb.ForeColor = p.Accent;
+                ProgressPainter.Attach(pb);
                 break;
 
             case TrackBar tb:
@@ -351,6 +336,23 @@ internal static class ThemeWalker
         TextRenderer.DrawText(g, gb.Text, font, caption, gb.Enabled ? p.TextMuted : p.TextDisabled, flags);
     }
 
+    // Editable combos keep their text selected after a programmatic change, which reads as a stray highlight bar
+    // while unfocused.
+    private static void ClearStraySelection(ComboBox cbx)
+    {
+        void Unselect() { if (!cbx.Focused && cbx.IsHandleCreated && cbx.SelectionLength != 0) cbx.SelectionLength = 0; }
+        if (_themedCombos.TryAdd(cbx, _sentinel))
+        {
+            // The control re-selects its text after raising SelectedIndexChanged, so clear it afterwards.
+            cbx.SelectedIndexChanged += (_, _) => { if (cbx.IsHandleCreated) cbx.BeginInvoke(Unselect); };
+            cbx.Leave += (_, _) => Unselect();
+            cbx.VisibleChanged += (_, _) => Unselect();
+        }
+        // Values loaded before theming (sub-form constructors) are still selected; clear once the control is up.
+        if (cbx.IsHandleCreated)
+            cbx.BeginInvoke(Unselect);
+    }
+
     private static readonly ConditionalWeakTable<ComboBox, object> _drawnCombos = new();
 
     // Owner-draws the rows of combos that use the default drawing; combos with their own DrawItem (e.g. move
@@ -359,9 +361,11 @@ internal static class ThemeWalker
     {
         if (cbx.DrawMode != DrawMode.Normal && !_drawnCombos.TryGetValue(cbx, out _))
             return;
-        cbx.DrawMode = DrawMode.OwnerDrawFixed;
-        if (_drawnCombos.TryAdd(cbx, _sentinel))
-            cbx.DrawItem += DrawThemedComboItem;
+        cbx.DrawMode = DrawMode.OwnerDrawVariable; // variable: list rows can be taller than the closed field
+        if (!_drawnCombos.TryAdd(cbx, _sentinel))
+            return;
+        cbx.DrawItem += DrawThemedComboItem;
+        cbx.MeasureItem += (_, e) => e.ItemHeight = cbx.LogicalToDeviceUnits(26);
     }
 
     private static void DrawThemedComboItem(object? sender, DrawItemEventArgs e)
@@ -375,11 +379,11 @@ internal static class ThemeWalker
         using (var bg = new SolidBrush(edit ? cb.BackColor : p.Surface1))
             e.Graphics.FillRectangle(bg, e.Bounds);
         if (selected) // rounded, accent-tinted row highlight
-            Shapes.Fill(e.Graphics, Rectangle.FromLTRB(e.Bounds.Left + 2, e.Bounds.Top + 1, e.Bounds.Right - 2, e.Bounds.Bottom - 1), 4, p.Mix(p.Surface1, p.Accent, p.IsDark ? 0.35f : 0.22f));
+            Shapes.Fill(e.Graphics, Rectangle.FromLTRB(e.Bounds.Left + 4, e.Bounds.Top + 2, e.Bounds.Right - 4, e.Bounds.Bottom - 2), 5, p.Mix(p.Surface1, p.Accent, p.IsDark ? 0.35f : 0.22f));
         if ((uint)e.Index >= (uint)cb.Items.Count)
             return;
         var text = cb.GetItemText(cb.Items[e.Index]);
-        var r = Rectangle.FromLTRB(e.Bounds.X + (edit ? 3 : 8), e.Bounds.Y, e.Bounds.Right - 4, e.Bounds.Bottom);
+        var r = Rectangle.FromLTRB(e.Bounds.X + (edit ? 3 : 12), e.Bounds.Y, e.Bounds.Right - 6, e.Bounds.Bottom);
         TextRenderer.DrawText(e.Graphics, text, e.Font ?? cb.Font, r, fore,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
@@ -466,8 +470,8 @@ internal static class ThemeWalker
 
         // CheckBox.Appearance.Button can owner-theme correctly; Normal appearance has a Windows-drawn
         // glyph that ignores palette colors. Hook a Paint override to draw a themed glyph.
-        if (cb.Appearance == Appearance.Normal && _themedCheckBoxes.TryAdd(cb, _sentinel))
-            cb.Paint += PaintThemedCheckBox;
+        if (_themedCheckBoxes.TryAdd(cb, _sentinel))
+            cb.Paint += cb.Appearance == Appearance.Button ? PaintToggleButton : PaintThemedCheckBox;
         cb.Invalidate();
     }
 
@@ -479,9 +483,33 @@ internal static class ThemeWalker
         rb.FlatAppearance.BorderColor = p.Border;
         rb.FlatAppearance.CheckedBackColor = p.Accent;
 
-        if (rb.Appearance == Appearance.Normal && _themedRadioButtons.TryAdd(rb, _sentinel))
-            rb.Paint += PaintThemedRadioButton;
+        if (_themedRadioButtons.TryAdd(rb, _sentinel))
+            rb.Paint += rb.Appearance == Appearance.Button ? PaintToggleButton : PaintThemedRadioButton;
         rb.Invalidate();
+    }
+
+    // Check boxes / radio buttons shown as buttons (segmented choices): accent fill when on, field surface when off.
+    private static void PaintToggleButton(object? sender, PaintEventArgs e)
+    {
+        if (sender is not ButtonBase b)
+            return;
+        bool on = b is RadioButton { Checked: true } or CheckBox { Checked: true };
+        var p = Theme.Current;
+        var g = e.Graphics;
+        var r = b.ClientRectangle;
+        using (var parent = new SolidBrush(ResolveParentBack(b, p)))
+            g.FillRectangle(parent, r);
+
+        bool hover = b.Enabled && r.Contains(b.PointToClient(Cursor.Position));
+        var fill = on ? (hover ? p.AccentHover : p.Accent) : hover ? p.HoverSurface : p.Surface1;
+        var border = on ? fill : b.Focused ? p.Accent : p.Border;
+        if (!b.Enabled)
+            (fill, border) = (p.Mix(fill, ResolveParentBack(b, p), 0.5f), p.Mix(border, ResolveParentBack(b, p), 0.5f));
+        Shapes.Fill(g, new Rectangle(0, 0, r.Width - 1, r.Height - 1), Math.Min(b.LogicalToDeviceUnits(6), r.Height / 2), fill, border);
+
+        var text = !b.Enabled ? p.TextDisabled : on ? p.AccentText : p.TextPrimary;
+        TextRenderer.DrawText(g, b.Text, b.Font, Rectangle.Inflate(r, -4, 0), text,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
     }
 
     private static void PaintThemedCheckBox(object? sender, PaintEventArgs e)
