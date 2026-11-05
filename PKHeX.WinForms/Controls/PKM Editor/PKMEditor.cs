@@ -26,7 +26,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         InitializeComponent();
         InitializeSidebar();
         SpaceOutRows();
-        TidyOTMisc();
+        ApplyEditorGrid();
 
         var font = FontUtil.GetPKXFont();
         TB_Nickname.Font = TB_OT.Font = TB_HT.Font = font;
@@ -83,35 +83,96 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_Friendship.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
     }
 
-    // OT/Misc: one label column, one field width (two-part fields split it), left-aligned bold section titles.
-    // Values are designer units; the form's DPI scaling is applied afterwards.
-    private void TidyOTMisc()
-    {
-        const int label = 124, field = 160, gap = 4;
-        Control[] labels = [Label_OT, Label_Country, Label_SubRegion, Label_3DSRegion, L_CurrentHandler, Label_PrevOT,
-            L_LanguageHT, L_ExtraBytes, L_HomeTracker, Label_EncryptionConstant, L_ArrivedDateTime];
-        foreach (var l in labels)
-            l.Width = label;
-        foreach (var c in new Control[] { CB_Country, CB_SubRegion, CB_3DSReg, CB_Handler, CB_HTLanguage, TB_HomeTracker, CAL_ReceivedDateTime })
-            c.Width = field;
-        TB_OT.Width = field - UC_OTGender.Width;
-        TB_HT.Width = field - UC_HTGender.Width;
+    // One spacing system for the editor tabs: a 124px label column, 160px fields (compound rows split that width),
+    // checkboxes starting at the field column, bold left-aligned section titles. Values are designer units; the
+    // form's DPI scaling is applied afterwards.
+    private const int GridLabel = 124, GridField = 160, GridGap = 4;
 
+    private void ApplyEditorGrid()
+    {
+        Control[] labels =
+        [
+            // Main
+            Label_Species, Label_EXP, Label_Nature, L_OriginalNature, Label_HeldItem, Label_Ability, Label_Language,
+            Label_PKRS, L_NSparkle, L_ShadowID, L_HeartGauge, L_CatchRate,
+            // Met
+            Label_OriginGame, L_BattleVersion, Label_MetLocation, Label_MetDate, Label_MetLevel, L_ObedienceLevel,
+            Label_GroundTile, L_MetTimeOfDay,
+            // OT/Misc
+            Label_OT, Label_Country, Label_SubRegion, Label_3DSRegion, L_CurrentHandler, Label_PrevOT,
+            L_LanguageHT, L_ExtraBytes, L_HomeTracker, Label_EncryptionConstant, L_ArrivedDateTime,
+        ];
+        foreach (var l in labels)
+        {
+            l.AutoSize = false;
+            l.Width = GridLabel;
+        }
+
+        // Right-to-left label groups (label + checkbox/icon) fill the label column so their content meets the fields.
+        // Fixed width, automatic height: a group whose label is hidden collapses, so empty rows (e.g. Form for a
+        // species without forms) take no space.
+        foreach (var left in new[] { FLP_PIDLeft, FLP_NicknameLeft, FLP_FormLeft, FLP_FriendshipLeft, FLP_EggPKRSLeft, FLP_BallLeft })
+        {
+            left.AutoSize = true;
+            left.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            left.MinimumSize = new Size(GridLabel, 0);
+            left.MaximumSize = new Size(GridLabel, 0);
+        }
+        FLP_FormRight.AutoSize = true;
+        FLP_FormRight.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+        Control[] fields =
+        [
+            CB_Species, TB_Nickname, CB_Nature, CB_StatNature, CB_Form, CB_HeldItem, CB_Ability, DEV_Ability, CB_Language,
+            CB_GameOrigin, CB_BattleVersion, CB_MetLocation, CB_Ball, CAL_MetDate, CB_GroundTile, CB_MetTimeOfDay,
+            CB_Country, CB_SubRegion, CB_3DSReg, CB_Handler, CB_HTLanguage, TB_HomeTracker, CAL_ReceivedDateTime,
+        ];
+        foreach (var c in fields)
+            c.Width = GridField;
+
+        // Compound rows split the field width.
+        TB_PID.Width = GridField - UC_Gender.Width - BTN_RerollPID.Width;
+        TB_EXP.Width = 64;
+        Label_CurLevel.Width = GridField - TB_EXP.Width - TB_Level.Width;
+        TB_OT.Width = GridField - UC_OTGender.Width;
+        TB_HT.Width = GridField - UC_HTGender.Width;
         TB_ExtraByte.Width = 48;
-        TB_ExtraByte.Margin = new Padding(gap, 0, 0, 0);
-        CB_ExtraBytes.Width = field - gap - TB_ExtraByte.Width;
+        TB_ExtraByte.Margin = new Padding(GridGap, 0, 0, 0);
+        CB_ExtraBytes.Width = GridField - GridGap - TB_ExtraByte.Width;
         BTN_RerollEC.Margin = Padding.Empty;
-        TB_EC.Margin = new Padding(gap, 2, 0, 0);
-        TB_EC.Width = field - gap - BTN_RerollEC.Width;
+        TB_EC.Margin = new Padding(GridGap, 2, 0, 0);
+        TB_EC.Width = GridField - GridGap - BTN_RerollEC.Width;
+        TB_MetLevel.Width = TB_ObedienceLevel.Width = 32;
+        CHK_Fateful.Margin = new Padding(8, CHK_Fateful.Margin.Top, 0, 0);
+
+        // Checkboxes on their own row start at the field column.
+        CHK_AsEgg.Margin = new Padding(GridLabel, 8, 0, 4);
+
+        // Egg met group: same columns inside the frame.
+        GB_EggConditions.Margin = new Padding(0, 4, 0, 0);
+        GB_EggConditions.Width = GridLabel + GridField + 8;
+        GB_EggConditions.Height = 82;
+        foreach (var (label, field, y) in new (Label, Control, int)[] { (Label_EggLocation, CB_EggLocation, 22), (Label_EggDate, CAL_EggDate, 50) })
+        {
+            label.AutoSize = false;
+            label.TextAlign = ContentAlignment.MiddleRight;
+            label.SetBounds(0, y, GridLabel - 6, 24);
+            field.SetBounds(GridLabel, y, GridField, field.Height);
+        }
 
         // The trainer ID control has its own 40px labels; indent it so they line up with the column above.
-        TID_Trainer.Margin = new Padding(label - 40, 0, 0, 0);
-        foreach (var title in new[] { GB_OT, GB_nOT })
+        TID_Trainer.Margin = new Padding(GridLabel - 40, 0, 0, 0);
+
+        // Section titles.
+        foreach (var title in new[] { GB_OT, GB_nOT, GB_CurrentMoves, GB_RelearnMoves })
         {
             title.Font = new Font(title.Font, FontStyle.Bold);
-            title.Margin = new Padding(8, 14, 0, 4);
+            title.Margin = new Padding(8, title == GB_CurrentMoves ? title.Margin.Top : 14, 0, 4);
         }
+        GB_CurrentMoves.AutoSize = false;
+        GB_CurrentMoves.Width = 192 - 8; // the PP / Ups header that follows must stay at x=192, above its columns
     }
+
 
     // Rows get a little breathing room.
     private void SpaceOutRows()
