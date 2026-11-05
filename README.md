@@ -14,6 +14,10 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 | --- | --- |
 | ![Settings](.github/screenshots/settings.png) | ![Trainer editor](.github/screenshots/trainer-info.png) |
 
+| Mystery Gift Database |
+| --- |
+| ![Mystery Gift Database](.github/screenshots/database.png) |
+
 ## What's different
 
 **Main window**
@@ -33,6 +37,7 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 - Dark and light themes with an accent color picked from the loaded game (or your own color).
 - Flat underline tabs, rounded buttons, themed text, number, date and dropdown fields, rounded group boxes.
 - Save / OK buttons stand out as the primary action in every dialog.
+- Database windows (Pokémon, Encounter, Mystery Gift) use the same dark slot tiles as the main box view.
 - The Windows title bar matches the app.
 
 **Fixes**

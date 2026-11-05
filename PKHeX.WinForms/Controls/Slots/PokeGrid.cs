@@ -72,7 +72,8 @@ public partial class PokeGrid : UserControl
         ResumeLayout();
     }
 
-    public void SetBackground(Image img) => BackgroundImage = img;
+    // Wallpapers clash with the dark palette: dark mode shows plain slot tiles on the card instead.
+    public void SetBackground(Image? img) => BackgroundImage = !DesignMode && Theming.Theme.Current.IsDark ? null : img;
 
     public static SelectablePictureBox GetControl(int width, int height, string name) => new()
     {

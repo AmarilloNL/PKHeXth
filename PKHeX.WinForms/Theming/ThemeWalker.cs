@@ -233,8 +233,13 @@ internal static class ThemeWalker
                 break;
 
             case Panel pan:
-                if (pan.BackColor == SystemColors.Control || pan.BackColor == Color.White)
+                // Designer defaults and light system colors (ButtonHighlight, Window...) become the card surface.
+                if (pan.BackColor == Color.White || IsLightSystemColor(pan.BackColor))
+                {
                     pan.BackColor = p.Surface0;
+                    if (pan.BorderStyle == BorderStyle.FixedSingle) // hard native frame around e.g. database result grids
+                        pan.BorderStyle = BorderStyle.None;
+                }
                 pan.ForeColor = p.TextPrimary;
                 break;
 
@@ -285,6 +290,10 @@ internal static class ThemeWalker
         foreach (ToolStripItem i in ctx.Items)
             StyleMenuItem(i, p);
     }
+
+    private static bool IsLightSystemColor(Color c) => c.IsSystemColor && c.ToKnownColor() is KnownColor.Control
+        or KnownColor.ButtonFace or KnownColor.ButtonHighlight or KnownColor.Window or KnownColor.ControlLight
+        or KnownColor.ControlLightLight or KnownColor.Info or KnownColor.Menu;
 
     private static Color ResolveParentBack(Control c, ThemePalette p)
     {
