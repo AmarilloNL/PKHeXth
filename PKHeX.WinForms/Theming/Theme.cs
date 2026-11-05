@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Drawing;
 using System.Windows.Forms;
@@ -193,8 +194,22 @@ public static class Theme
     /// <summary> Themes every open form that is not themed yet (normally done on the first idle after it opens). </summary>
     public static void HookOpenForms()
     {
-        // Application.OpenForms spans threads; skip forms on other UI threads.
-        foreach (Form f in Application.OpenForms)
+        // Application.OpenForms spans threads (the splash screen closes on its own thread), so it can change while
+        // being read: copy it first, retrying if it changed mid-copy. Forms on other UI threads are skipped.
+        Form[] forms = [];
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                forms = [.. Application.OpenForms.Cast<Form>()];
+                break;
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        foreach (var f in forms)
         {
             if (f.IsDisposed || f.InvokeRequired)
                 continue;

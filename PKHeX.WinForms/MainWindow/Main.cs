@@ -44,6 +44,9 @@ public partial class Main : Form, Theming.IThemedControl
 
         // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
         PN_HeroCard.Controls.Add(dragout);
+        dragout.ZoomSprite = true; // the sprite fills the card (see the resize below)
+        PN_HeroCard.SizeChanged += (_, _) => dragout.Size = PN_HeroCard.ClientSize - new Size(8, 8);
+        dragout.Size = PN_HeroCard.ClientSize - new Size(8, 8);
         EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
         dragout.SizeChanged += centerDragout;
         centerDragout(null, EventArgs.Empty);
@@ -829,7 +832,6 @@ public partial class Main : Form, Theming.IThemedControl
         ParseSettings.InitFromSaveFileData(sav); // physical GB, no longer used in logic
         RecentTrainerCache.SetRecentTrainer(sav);
         SpriteUtil.Initialize(sav); // refresh sprite generator
-        dragout.Size = new Size(SpriteUtil.Spriter.Width, SpriteUtil.Spriter.Height);
 
         // clean fields
         Menu_ExportSAV.Enabled = sav.State.Exportable;

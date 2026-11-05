@@ -70,6 +70,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     {
         InitializeComponent();
         Tab_Box.Resize += (_, _) => FitBox();
+        Tab_PartyBattle.Resize += (_, _) => FitParty();
         InitializeToolTiles();
 
         L_SlotOccupied = [L_DC1, L_DC2];
@@ -1243,6 +1244,17 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         Box.RecenterControls();
         Box.HorizontallyCenter(Tab_Box);
         Box.Top = pad;
+        FitParty();
+    }
+
+    // Party tiles match the box tiles; the party sits centered in its tab.
+    private void FitParty()
+    {
+        if (Box.BoxPokeGrid.Entries.Count == 0)
+            return;
+        SL_Party.FitTiles(Box.BoxPokeGrid.Entries[0].Size);
+        SL_Party.Location = new Point((Tab_PartyBattle.ClientSize.Width - SL_Party.Width) / 2,
+            Math.Max(LogicalToDeviceUnits(8), (Tab_PartyBattle.ClientSize.Height - SL_Party.Height) / 2));
     }
 
     private void ToggleViewReset()
@@ -1279,7 +1291,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             bool newSlots = SL_Party.InitializeFromSAV(SAV);
             if (newSlots)
             {
-                SL_Party.HorizontallyCenter(Tab_PartyBattle);
+                FitParty();
                 foreach (var pb in SL_Party.SlotPictureBoxes)
                     pb.ContextMenuStrip = menu.mnuVSD;
             }
