@@ -147,6 +147,7 @@ internal static class ThemeWalker
                 break;
 
             case ComboBox cbx:
+                PopupStyle.Hook(cbx);
                 cbx.BackColor = p.Surface1;
                 cbx.ForeColor = p.TextPrimary;
                 // Native chrome reads better for editable combos, but native list-only combos can render with the
@@ -168,13 +169,12 @@ internal static class ThemeWalker
                     // Values loaded before theming (sub-form constructors) are still selected; clear once the control is up.
                     if (cbx.IsHandleCreated)
                         cbx.BeginInvoke(() => { if (!cbx.Focused && cbx.SelectionLength != 0) cbx.SelectionLength = 0; });
+                    UseThemedList(cbx); // the edit part stays native; only the drop-down rows are drawn
                 }
-                else if (cbx.DrawMode == DrawMode.Normal || _themedCombos.TryGetValue(cbx, out _))
+                else if (cbx.DrawMode == DrawMode.Normal || _drawnCombos.TryGetValue(cbx, out _))
                 {
                     cbx.FlatStyle = FlatStyle.Flat;
-                    cbx.DrawMode = DrawMode.OwnerDrawFixed;
-                    if (_themedCombos.TryAdd(cbx, _sentinel))
-                        cbx.DrawItem += DrawThemedComboItem;
+                    UseThemedList(cbx);
                 }
                 BorderPainter.Attach(cbx);
                 break;
@@ -278,6 +278,7 @@ internal static class ThemeWalker
                 {
                     dd.BackColor = p.Surface1;
                     dd.ForeColor = p.TextPrimary;
+                    PopupStyle.Hook(dd);
                 }
                 break;
             case ToolStripComboBox cb:
@@ -295,6 +296,7 @@ internal static class ThemeWalker
     {
         ctx.BackColor = p.Surface1;
         ctx.ForeColor = p.TextPrimary;
+        PopupStyle.Hook(ctx);
         foreach (ToolStripItem i in ctx.Items)
             StyleMenuItem(i, p);
     }
@@ -349,6 +351,19 @@ internal static class ThemeWalker
         TextRenderer.DrawText(g, gb.Text, font, caption, gb.Enabled ? p.TextMuted : p.TextDisabled, flags);
     }
 
+    private static readonly ConditionalWeakTable<ComboBox, object> _drawnCombos = new();
+
+    // Owner-draws the rows of combos that use the default drawing; combos with their own DrawItem (e.g. move
+    // legality colors) are left alone.
+    private static void UseThemedList(ComboBox cbx)
+    {
+        if (cbx.DrawMode != DrawMode.Normal && !_drawnCombos.TryGetValue(cbx, out _))
+            return;
+        cbx.DrawMode = DrawMode.OwnerDrawFixed;
+        if (_drawnCombos.TryAdd(cbx, _sentinel))
+            cbx.DrawItem += DrawThemedComboItem;
+    }
+
     private static void DrawThemedComboItem(object? sender, DrawItemEventArgs e)
     {
         if (sender is not ComboBox cb)
@@ -356,14 +371,15 @@ internal static class ThemeWalker
         var p = Theme.Current;
         bool edit = (e.State & DrawItemState.ComboBoxEdit) != 0;
         bool selected = !edit && (e.State & DrawItemState.Selected) != 0;
-        var back = selected ? p.Accent : cb.BackColor;
-        var fore = !cb.Enabled ? p.TextDisabled : selected ? p.AccentText : cb.ForeColor;
-        using (var bg = new SolidBrush(back))
+        var fore = !cb.Enabled ? p.TextDisabled : cb.ForeColor;
+        using (var bg = new SolidBrush(edit ? cb.BackColor : p.Surface1))
             e.Graphics.FillRectangle(bg, e.Bounds);
+        if (selected) // rounded, accent-tinted row highlight
+            Shapes.Fill(e.Graphics, Rectangle.FromLTRB(e.Bounds.Left + 2, e.Bounds.Top + 1, e.Bounds.Right - 2, e.Bounds.Bottom - 1), 4, p.Mix(p.Surface1, p.Accent, p.IsDark ? 0.35f : 0.22f));
         if ((uint)e.Index >= (uint)cb.Items.Count)
             return;
         var text = cb.GetItemText(cb.Items[e.Index]);
-        var r = Rectangle.FromLTRB(e.Bounds.X + 3, e.Bounds.Y, e.Bounds.Right - 2, e.Bounds.Bottom);
+        var r = Rectangle.FromLTRB(e.Bounds.X + (edit ? 3 : 8), e.Bounds.Y, e.Bounds.Right - 4, e.Bounds.Bottom);
         TextRenderer.DrawText(e.Graphics, text, e.Font ?? cb.Font, r, fore,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
