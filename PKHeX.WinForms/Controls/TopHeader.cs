@@ -21,6 +21,12 @@ public sealed class TopHeader : Panel, IThemedControl
     private string _ids = string.Empty;
     private Color _gameColor;
 
+    /// <summary> Primary action shown when no save file is open. </summary>
+    public Button OpenSave { get; } = new() { Text = "Open save file…", AutoSize = true, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderOpen" };
+
+    /// <summary> Primary action shown once a save file is open. </summary>
+    public Button ExportSave { get; } = new() { Text = "Export save…", AutoSize = true, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderExport", Visible = false };
+
     public TopHeader()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint
@@ -33,6 +39,8 @@ public sealed class TopHeader : Panel, IThemedControl
         Height = LogicalToDeviceUnits(52);
         AccessibleRole = AccessibleRole.TitleBar;
         AccessibleName = Wordmark;
+        Controls.Add(OpenSave);
+        Controls.Add(ExportSave);
     }
 
     public void ApplyTheme(ThemePalette palette)
@@ -41,9 +49,11 @@ public sealed class TopHeader : Panel, IThemedControl
         Invalidate();
     }
 
-    public void SetSave(SaveFile? sav)
+    public void SetSave(SaveFile? sav, bool fromFile = true)
     {
-        if (sav is null)
+        OpenSave.Visible = !fromFile;
+        ExportSave.Visible = fromFile && sav is { State.Exportable: true };
+        if (sav is null || !fromFile)
         {
             _game = _ot = _ids = string.Empty;
             AccessibleDescription = "No save loaded";
@@ -78,8 +88,9 @@ public sealed class TopHeader : Panel, IThemedControl
                 case MenuStrip ms:
                     ms.Location = new Point(BrandRight + gap, (Height - ms.Height) / 2);
                     break;
-                case AccentStatusChip chip:
-                    chip.Location = new Point(right - chip.Width, (Height - chip.Height) / 2);
+                case Button b when b.Visible:
+                    b.Location = new Point(right - b.Width, (Height - b.Height) / 2);
+                    right = b.Left - gap;
                     break;
             }
         }
@@ -143,7 +154,7 @@ public sealed class TopHeader : Panel, IThemedControl
         {
             if (!c.Visible)
                 continue;
-            if (c is AccentStatusChip)
+            if (c is Button)
                 right = Math.Min(right, c.Left);
             else
                 left = Math.Max(left, c.Right);

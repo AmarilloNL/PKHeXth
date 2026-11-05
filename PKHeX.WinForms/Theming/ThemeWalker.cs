@@ -10,6 +10,9 @@ internal static class ThemeWalker
 {
     public const string OptOutTag = "notheme";
 
+    /// <summary> Set a button's Tag to this to render it as the primary (accent) action. </summary>
+    public const string PrimaryTag = "primary";
+
     public static void Apply(Control root, ThemePalette p)
     {
         if (root is null)
@@ -81,14 +84,19 @@ internal static class ThemeWalker
                 gb.Invalidate();
                 break;
 
+            case DateTimePicker dtp:
+                DatePickerPainter.Attach(dtp);
+                break;
+
             case Button btn:
                 btn.FlatStyle = FlatStyle.Flat;
                 btn.FlatAppearance.BorderColor = p.Border;
                 btn.FlatAppearance.BorderSize = 1;
                 btn.FlatAppearance.MouseOverBackColor = p.Surface2;
                 btn.FlatAppearance.MouseDownBackColor = p.PressedSurface;
-                btn.BackColor = p.Surface1;
-                btn.ForeColor = p.TextPrimary;
+                bool primary = btn.Tag is PrimaryTag; // call-to-action buttons get the accent fill
+                btn.BackColor = primary ? p.Accent : p.Surface1;
+                btn.ForeColor = primary ? p.AccentText : p.TextPrimary;
                 btn.UseVisualStyleBackColor = false;
                 if (btn.BackgroundImage is null && _themedButtons.TryAdd(btn, _sentinel))
                     btn.Paint += PaintThemedButton;
@@ -290,6 +298,14 @@ internal static class ThemeWalker
     private static readonly ConditionalWeakTable<CheckBox, object> _themedCheckBoxes = new();
     private static readonly ConditionalWeakTable<RadioButton, object> _themedRadioButtons = new();
     private static readonly ConditionalWeakTable<Button, object> _themedButtons = new();
+    private static readonly ConditionalWeakTable<Button, string> _tileGlyphs = new();
+
+    /// <summary> Renders <paramref name="b"/> as a tile: <paramref name="glyph"/> (icon font) above its text. </summary>
+    public static void SetTileGlyph(Button b, string glyph)
+    {
+        _tileGlyphs.AddOrUpdate(b, glyph);
+        b.Invalidate();
+    }
     private static readonly ConditionalWeakTable<ComboBox, object> _themedCombos = new();
     private static readonly ConditionalWeakTable<GroupBox, object> _themedGroups = new();
 
@@ -361,6 +377,19 @@ internal static class ThemeWalker
         var border = b.Focused ? p.Accent : hover ? p.Mix(p.Border, p.TextPrimary, 0.15f) : p.Border;
         int radius = Math.Min(b.LogicalToDeviceUnits(6), r.Height / 2);
         Shapes.Fill(g, new Rectangle(0, 0, r.Width - 1, r.Height - 1), radius, fill, border);
+
+        if (_tileGlyphs.TryGetValue(b, out var glyph) && Icons.Get(15f) is { } iconFont)
+        {
+            // Tile: icon on top, label below.
+            int split = (int)(r.Height * 0.56);
+            var iconColor = !b.Enabled ? p.TextDisabled : hover ? p.AccentHover : p.Accent;
+            TextRenderer.DrawText(g, glyph, iconFont, new Rectangle(0, 2, r.Width, split), iconColor,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.Bottom | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, b.Text.Trim('‎'), b.Font, new Rectangle(4, split + 2, r.Width - 8, r.Height - split - 4),
+                b.Enabled ? p.TextPrimary : p.TextDisabled,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            return;
+        }
 
         var content = Rectangle.Inflate(r, -3, -1);
         bool hasText = !string.IsNullOrEmpty(b.Text);

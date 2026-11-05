@@ -58,11 +58,22 @@ public static class Theme
         RaiseChanged();
     }
 
+    private static Color _saveAccent = GameAccentResolver.Default;
+
+    /// <summary> Re-reads the theme settings (mode, accent) and repaints every open form. </summary>
+    public static void Refresh()
+    {
+        ApplyColorMode();
+        RebuildPalette();
+        RaiseChanged();
+    }
+
     public static void OnSaveFileLoaded(SaveFile? sav)
     {
+        _saveAccent = GameAccentResolver.Resolve(sav);
         if (_settings.AccentSource != AccentSource.FromSave)
             return;
-        var newAccent = GameAccentResolver.Resolve(sav);
+        var newAccent = _saveAccent;
         if (newAccent.ToArgb() == _current.Accent.ToArgb())
             return;
         _current = _current.WithAccent(newAccent);
@@ -123,7 +134,7 @@ public static class Theme
         var accent = _settings.AccentSource switch
         {
             AccentSource.Custom => _settings.AccentColor,
-            AccentSource.FromSave => _current.Accent,
+            AccentSource.FromSave => _saveAccent,
             _ => GameAccentResolver.Default,
         };
 

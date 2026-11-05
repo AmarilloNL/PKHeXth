@@ -40,6 +40,8 @@ public partial class Main : Form, Theming.IThemedControl
         PB_Legal.Anchor = AnchorStyles.None;
 
         // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
+        topHeader.OpenSave.Click += (s, e) => MainMenuOpen(s!, e);
+        topHeader.ExportSave.Click += (s, e) => ClickExportSAV(s!, e);
         PN_HeroCard.Controls.Add(dragout);
         EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
         dragout.SizeChanged += centerDragout;
@@ -393,6 +395,7 @@ public partial class Main : Form, Theming.IThemedControl
         Text = GetProgramTitle(C_SAV.SAV);
         // Update final settings
         ReloadProgramSettings(Settings);
+        Theming.Theme.Refresh();
 
         if (form.BlankChanged) // changed by user
         {
@@ -783,7 +786,7 @@ public partial class Main : Form, Theming.IThemedControl
             return true;
 
         Theming.Theme.OnSaveFileLoaded(sav);
-        topHeader.SetSave(sav);
+        topHeader.SetSave(sav, !string.IsNullOrWhiteSpace(path));
         SL_SavePath.Text = string.IsNullOrWhiteSpace(path) ? "In-memory save" : path;
         SL_Version.Text = sav.Version.ToString();
         SL_Language.Text = ((LanguageID)sav.Language).ToString();

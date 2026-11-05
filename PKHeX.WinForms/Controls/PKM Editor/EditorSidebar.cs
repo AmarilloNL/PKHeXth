@@ -266,10 +266,7 @@ public sealed class EditorSidebar : Control, IThemedControl
             DrawFocusRing(g, rect, p);
     }
 
-    // Segoe Fluent Icons (Win11) or MDL2 Assets (Win10); falls back to a colored dot when neither exists.
-    private static readonly Font? IconFont = Array.Find(FontFamily.Families, f => f.Name == "Segoe Fluent Icons")
-        is { } fluent ? new Font(fluent, 11f) : Array.Find(FontFamily.Families, f => f.Name == "Segoe MDL2 Assets")
-        is { } mdl2 ? new Font(mdl2, 11f) : null;
+    private static Font? IconFont => Icons.Get(11f); // null when no icon font: draw a colored dot instead
 
     private const int IconSize = 18;
 

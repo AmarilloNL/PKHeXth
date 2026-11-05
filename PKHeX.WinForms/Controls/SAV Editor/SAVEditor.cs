@@ -70,6 +70,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     {
         InitializeComponent();
         Tab_Box.Resize += (_, _) => CenterBoxVertically();
+        InitializeToolTiles();
 
         L_SlotOccupied = [L_DC1, L_DC2];
         TB_SlotEXP = [TB_Daycare1XP, TB_Daycare2XP];
@@ -1140,6 +1141,66 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         return WindowTranslationRequired;
     }
 
+    // Save editors are shown as icon tiles filling the space below the save-specific fields.
+    private void InitializeToolTiles()
+    {
+        foreach (var b in FLP_SAVtools.Controls.OfType<Button>())
+        {
+            b.AutoSize = false;
+            b.Size = new Size(LogicalToDeviceUnits(96), LogicalToDeviceUnits(66));
+            b.Margin = new Padding(LogicalToDeviceUnits(4));
+            Theming.ThemeWalker.SetTileGlyph(b, ToolGlyph(b.Name));
+        }
+        FLP_SAVtools.Padding = new Padding(LogicalToDeviceUnits(4));
+        Tab_SAV.Resize += (_, _) => LayoutSaveTools();
+        Tab_SAV.VisibleChanged += (_, _) => LayoutSaveTools();
+    }
+
+    private void LayoutSaveTools()
+    {
+        if (!Tab_SAV.Visible) // child visibility reads false while the page is hidden
+            return;
+        int top = 0;
+        foreach (Control c in Tab_SAV.Controls)
+        {
+            if (c != FLP_SAVtools && c.Visible)
+                top = Math.Max(top, c.Bottom);
+        }
+        top += LogicalToDeviceUnits(8);
+        FLP_SAVtools.Dock = DockStyle.None;
+        FLP_SAVtools.SetBounds(0, top, Tab_SAV.ClientSize.Width, Math.Max(0, Tab_SAV.ClientSize.Height - top));
+    }
+
+    private static string ToolGlyph(string name) => name switch
+    {
+        nameof(B_OpenTrainerInfo) => "",
+        nameof(B_OpenItemPouch) => "",
+        nameof(B_OpenBoxLayout) or nameof(B_OtherSlots) => "",
+        nameof(B_OpenWondercards) or nameof(B_OpenHallofFame) => "",
+        nameof(B_OpenOPowers) => "",
+        nameof(B_OpenEventFlags) => "",
+        nameof(B_OpenPokedex) => "",
+        nameof(B_OpenLinkInfo) => "",
+        nameof(B_OpenSecretBase) or nameof(B_OpenUnityTowerEditor) or nameof(B_FestivalPlaza) => "",
+        nameof(B_OpenBerryField) or nameof(B_OpenPokeblocks) or nameof(B_OpenPokepuffs) or nameof(B_OpenPokeBeans)
+            or nameof(B_Donuts) or nameof(B_Poffins) or nameof(B_OpenApricorn) or nameof(B_OpenHoneyTreeEditor) => "",
+        nameof(B_OpenSuperTraining) => "",
+        nameof(B_OUTPasserby) => "",
+        nameof(B_DLC) => "",
+        nameof(B_CellsStickers) or nameof(B_OpenSealStickers) or nameof(B_OpenBattlePass) => "",
+        nameof(B_OpenMiscEditor) => "",
+        nameof(B_OpenFriendSafari) or nameof(B_OpenUGSEditor) => "",
+        nameof(B_OpenRTCEditor) => "",
+        nameof(B_OpenGeonetEditor) => "",
+        nameof(B_OpenChatterEditor) => "",
+        nameof(B_Roamer) => "",
+        nameof(B_MailBox) => "",
+        nameof(B_Raids) or nameof(B_RaidsDLC1) or nameof(B_RaidsDLC2) or nameof(B_RaidsSevenStar) => "",
+        nameof(B_Blocks) => "",
+        nameof(B_OpenGear) or nameof(B_OpenFashion) => "",
+        _ => "",
+    };
+
     // Balance spare height above and below the box grid.
     private void CenterBoxVertically() => Box.Top = Math.Max(LogicalToDeviceUnits(7), (Tab_Box.Height - Box.Height) / 2);
 
@@ -1307,6 +1368,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         var list = FLP_SAVtools.Controls.OfType<Control>().OrderBy(z => z.Text).ToArray();
         FLP_SAVtools.Controls.Clear();
         FLP_SAVtools.Controls.AddRange(list);
+        LayoutSaveTools();
 
         SL_Extra.SAV = sav;
         SL_Extra.Initialize(sav.GetExtraSlots(HaX), InitializeDragDrop);
