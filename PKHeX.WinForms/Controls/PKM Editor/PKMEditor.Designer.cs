@@ -542,7 +542,7 @@ namespace PKHeX.WinForms.Controls
             TB_PID.MaxLength = 8;
             TB_PID.Name = "TB_PID";
             TB_PID.PlaceholderText = "12345678";
-            TB_PID.Size = new System.Drawing.Size(64, 20);
+            TB_PID.Size = new System.Drawing.Size(84, 20);
             TB_PID.TabIndex = 1;
             TB_PID.MouseHover += UpdateTSV;
             TB_PID.Validated += Update_ID;
