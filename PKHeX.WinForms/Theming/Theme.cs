@@ -196,6 +196,7 @@ public static class Theme
     {
         try
         {
+            Controls.SettingsView.UpgradePropertyGrids(f); // plugin settings windows get the settings page
             if (f.IsHandleCreated)
                 Apply(f);
             else

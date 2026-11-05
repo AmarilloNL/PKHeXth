@@ -28,6 +28,7 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 - One searchable page (Ctrl+F) with a category sidebar instead of 20+ tabs of property grids.
 - Every setting is a row with a plain-language title, its description, and a fitting control: switch, dropdown, number, or color.
 - Theme changes apply as soon as Settings closes.
+- The same page is used for the database windows' Settings tabs and for plugin settings windows such as Auto-Legality Mod's (with its own categories); plugins keep saving their settings as before.
 
 **Everywhere** (including sub-windows and plugin windows)
 - Dark and light themes with an accent color picked from the loaded game (or your own color).
