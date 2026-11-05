@@ -4,6 +4,10 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
+## Download
+
+Grab **PKHeX.exe** from the [latest release](https://github.com/AmarilloNL/PKHeXth/releases/latest). It's a single self-contained file for 64-bit Windows: no install and no .NET runtime needed. Put it in its own folder (it keeps its settings, backups and databases next to itself) and run it.
+
 ![Main window, dark theme](.github/screenshots/main-dark.png)
 
 | Light theme | Save tools |
@@ -71,6 +75,8 @@ PKHeX is a Windows Forms application which requires [.NET 10.0](https://dotnet.m
 ```
 dotnet build PKHeX.WinForms/PKHeX.WinForms.csproj -c Release
 ```
+
+To make the single-file download yourself: `dotnet publish PKHeX.WinForms/PKHeX.WinForms.csproj -c Release -r win-x64 -p:SelfContained=true -p:EnableCompressionInSingleFile=true`.
 
 The executable can be built with any compiler that supports C# 13. It can also be opened in [Visual Studio](https://visualstudio.microsoft.com/downloads/) via the .sln or .csproj file. Use the Debug or Release configuration; there isn't any platform specific code to worry about.
 

@@ -188,7 +188,10 @@ public static class Theme
         Changed?.Invoke(null, EventArgs.Empty);
     }
 
-    private static void OnIdleHookForms(object? sender, EventArgs e)
+    private static void OnIdleHookForms(object? sender, EventArgs e) => HookOpenForms();
+
+    /// <summary> Themes every open form that is not themed yet (normally done on the first idle after it opens). </summary>
+    public static void HookOpenForms()
     {
         // Application.OpenForms spans threads; skip forms on other UI threads.
         foreach (Form f in Application.OpenForms)
