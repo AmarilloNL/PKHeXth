@@ -16,4 +16,7 @@ public sealed class EntityEditorSettings
 
     [LocalizedDescription("When showing an entity, show the Experience Bar to allow editing of EXP and Level.")]
     public bool ShowExperienceBar { get; set; } = true;
+
+    [LocalizedDescription("Show expert-only fields in the Pokémon editor (form argument, battle version, obedience level, ground tile, encryption constant, HOME tracker, extra bytes). Their values are kept either way.")]
+    public bool ShowAdvancedFields { get; set; }
 }

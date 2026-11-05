@@ -3289,7 +3289,7 @@ namespace PKHeX.WinForms.Controls
             // 
             // StatusView
             // 
-            StatusView.Location = new System.Drawing.Point(2, 303);
+            StatusView.Location = new System.Drawing.Point(23, 256);
             StatusView.Margin = new System.Windows.Forms.Padding(0);
             StatusView.Name = "StatusView";
             StatusView.Size = new System.Drawing.Size(64, 64);

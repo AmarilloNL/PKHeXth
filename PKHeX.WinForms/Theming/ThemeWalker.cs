@@ -94,7 +94,8 @@ internal static class ThemeWalker
                 btn.FlatAppearance.BorderSize = 1;
                 btn.FlatAppearance.MouseOverBackColor = p.Surface2;
                 btn.FlatAppearance.MouseDownBackColor = p.PressedSurface;
-                bool primary = btn.Tag is PrimaryTag; // call-to-action buttons get the accent fill
+                // Call-to-action buttons get the accent fill: explicit tag, or the conventional Save/OK of a dialog.
+                bool primary = btn.Tag is PrimaryTag || btn.Name is "B_Save" or "B_OK";
                 btn.BackColor = primary ? p.Accent : p.Surface1;
                 btn.ForeColor = primary ? p.AccentText : p.TextPrimary;
                 btn.UseVisualStyleBackColor = false;
@@ -152,7 +153,21 @@ internal static class ThemeWalker
                 // light system theme in dark mode, so those are flat + owner-drawn.
                 if (cbx.DropDownStyle != ComboBoxStyle.DropDownList)
                 {
-                    cbx.FlatStyle = FlatStyle.Standard;
+                    // Without autocomplete the native dark chrome falls back to a white field; flat honors BackColor.
+                    cbx.FlatStyle = cbx.AutoCompleteMode == AutoCompleteMode.None ? FlatStyle.Flat : FlatStyle.Standard;
+                    if (_themedCombos.TryAdd(cbx, _sentinel))
+                    {
+                        // Editable combos keep their text selected after a programmatic change, which reads as a stray
+                        // highlight bar while unfocused.
+                        void Unselect(object? s, EventArgs e) { if (!cbx.Focused && cbx.IsHandleCreated && cbx.SelectionLength != 0) cbx.SelectionLength = 0; }
+                        // The control re-selects its text after raising SelectedIndexChanged, so clear it afterwards.
+                        cbx.SelectedIndexChanged += (s, e) => { if (cbx.IsHandleCreated) cbx.BeginInvoke(() => Unselect(s, e)); };
+                        cbx.Leave += Unselect;
+                        cbx.VisibleChanged += Unselect;
+                    }
+                    // Values loaded before theming (sub-form constructors) are still selected; clear once the control is up.
+                    if (cbx.IsHandleCreated)
+                        cbx.BeginInvoke(() => { if (!cbx.Focused && cbx.SelectionLength != 0) cbx.SelectionLength = 0; });
                 }
                 else if (cbx.DrawMode == DrawMode.Normal || _themedCombos.TryGetValue(cbx, out _))
                 {

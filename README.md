@@ -10,13 +10,16 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 | --- | --- |
 | ![Main window, light theme](.github/screenshots/main-light.png) | ![Save editor tiles](.github/screenshots/save-tools.png) |
 
-![Settings](.github/screenshots/settings.png)
+| Settings | Sub-windows |
+| --- | --- |
+| ![Settings](.github/screenshots/settings.png) | ![Trainer editor](.github/screenshots/trainer-info.png) |
 
 ## What's different
 
 **Main window**
 - One app bar with the trainer summary and a clear **Open save file** / **Export save** button.
 - Pokémon summary header: sprite, name, gender and shiny marks, type chips, level, and the legality badge.
+- **Simple by default:** expert-only fields (form argument, battle version, obedience level, ground tile, encryption constant, HOME tracker, extra bytes) stay hidden until you flip **Advanced fields** at the bottom of the editor sidebar. Their values are kept either way.
 - Editor and box panes drawn as cards; sidebar sections with icons, and a red dot on sections that contain invalid data.
 - Box and party slots as rounded tiles, with box wallpapers shown through in light mode.
 - Save editors on the SAV tab as labelled icon tiles instead of a wall of small buttons.
@@ -29,6 +32,7 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 **Everywhere** (including sub-windows and plugin windows)
 - Dark and light themes with an accent color picked from the loaded game (or your own color).
 - Flat underline tabs, rounded buttons, themed text, number, date and dropdown fields, rounded group boxes.
+- Save / OK buttons stand out as the primary action in every dialog.
 - The Windows title bar matches the app.
 
 **Fixes**
