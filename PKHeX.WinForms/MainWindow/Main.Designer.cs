@@ -526,7 +526,7 @@ namespace PKHeX.WinForms
             AllowDrop = true;
             AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-            ClientSize = new System.Drawing.Size(945, 544);
+            ClientSize = new System.Drawing.Size(945, 566);
             Controls.Add(splitContainer1);
             Controls.Add(topHeader);
             Controls.Add(statusStrip);

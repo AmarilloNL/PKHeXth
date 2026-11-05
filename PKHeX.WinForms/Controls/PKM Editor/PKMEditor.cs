@@ -86,7 +86,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     // One spacing system for the editor tabs: a 124px label column, 160px fields (compound rows split that width),
     // checkboxes starting at the field column, bold left-aligned section titles. Values are designer units; the
     // form's DPI scaling is applied afterwards.
-    private const int GridLabel = 124, GridField = 160, GridGap = 4;
+    private const int GridLabel = 124, GridField = 180, GridGap = 4;
 
     private void ApplyEditorGrid()
     {
@@ -131,6 +131,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         {
             c.Width = GridField;
             c.Margin = Padding.Empty; // some carried a few px of designer offset, pushing them out of their row
+            c.Anchor = AnchorStyles.Top | AnchorStyles.Left; // "centered" fields stayed put when they grew after layout
         }
 
         // Compound rows split the field width.
@@ -185,7 +186,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             foreach (Control row in flp.Controls)
             {
                 if (row is FlowLayoutPanel)
-                    row.Margin = new Padding(0, 2, 0, 2);
+                    row.Margin = new Padding(0, 3, 0, 3);
             }
         }
     }
