@@ -76,6 +76,9 @@ internal static class ThemeWalker
             case GroupBox gb:
                 gb.BackColor = Color.Transparent;
                 gb.ForeColor = p.TextMuted;
+                if (_themedGroups.TryAdd(gb, _sentinel))
+                    gb.Paint += PaintThemedGroupBox;
+                gb.Invalidate();
                 break;
 
             case Button btn:
@@ -110,25 +113,28 @@ internal static class ThemeWalker
 
             case Label lbl:
                 lbl.BackColor = Color.Transparent;
-                lbl.ForeColor = p.TextPrimary;
+                lbl.ForeColor = lbl.Text.AsSpan().TrimEnd() is [.., ':' or '：'] ? p.TextMuted : p.TextPrimary; // captions recede, values stand out
                 break;
 
             case TextBox tb:
                 tb.BackColor = p.Surface1;
                 tb.ForeColor = p.TextPrimary;
                 tb.BorderStyle = BorderStyle.FixedSingle;
+                BorderPainter.Attach(tb);
                 break;
 
             case MaskedTextBox mtb:
                 mtb.BackColor = p.Surface1;
                 mtb.ForeColor = p.TextPrimary;
                 mtb.BorderStyle = BorderStyle.FixedSingle;
+                BorderPainter.Attach(mtb);
                 break;
 
             case NumericUpDown nud:
                 nud.BackColor = p.Surface1;
                 nud.ForeColor = p.TextPrimary;
                 nud.BorderStyle = BorderStyle.FixedSingle;
+                BorderPainter.Attach(nud);
                 break;
 
             case ComboBox cbx:
@@ -147,6 +153,7 @@ internal static class ThemeWalker
                     if (_themedCombos.TryAdd(cbx, _sentinel))
                         cbx.DrawItem += DrawThemedComboItem;
                 }
+                BorderPainter.Attach(cbx);
                 break;
 
             case ListBox lb:
@@ -236,6 +243,8 @@ internal static class ThemeWalker
     private static void StyleMenuItem(ToolStripItem item, ThemePalette p)
     {
         item.ForeColor = p.TextPrimary;
+        if (item is ToolStripMenuItem && item.Owner is ToolStripDropDown)
+            item.Padding = new Padding(2, 3, 2, 3); // roomier dropdown rows
         switch (item)
         {
             case ToolStripMenuItem tsmi:
@@ -282,6 +291,32 @@ internal static class ThemeWalker
     private static readonly ConditionalWeakTable<RadioButton, object> _themedRadioButtons = new();
     private static readonly ConditionalWeakTable<Button, object> _themedButtons = new();
     private static readonly ConditionalWeakTable<ComboBox, object> _themedCombos = new();
+    private static readonly ConditionalWeakTable<GroupBox, object> _themedGroups = new();
+
+    // Replaces the etched native frame with a rounded 1px border and a semibold caption sitting in a gap.
+    private static void PaintThemedGroupBox(object? sender, PaintEventArgs e)
+    {
+        if (sender is not GroupBox gb)
+            return;
+        var p = Theme.Current;
+        var g = e.Graphics;
+        g.Clear(ResolveParentBack(gb, p));
+
+        using var font = new Font(gb.Font, FontStyle.Bold);
+        const TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
+        var size = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(g, gb.Text, font, Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+        int top = size.Height / 2;
+        var frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
+        Shapes.Fill(g, frame, gb.LogicalToDeviceUnits(6), Color.Empty, p.Border);
+        if (size.IsEmpty)
+            return;
+
+        var caption = new Rectangle(gb.LogicalToDeviceUnits(8), 0, Math.Min(size.Width + 8, gb.Width - 16), size.Height);
+        using (var gap = new SolidBrush(ResolveParentBack(gb, p)))
+            g.FillRectangle(gap, caption);
+        caption.Offset(4, 0);
+        TextRenderer.DrawText(g, gb.Text, font, caption, gb.Enabled ? p.TextMuted : p.TextDisabled, flags);
+    }
 
     private static void DrawThemedComboItem(object? sender, DrawItemEventArgs e)
     {

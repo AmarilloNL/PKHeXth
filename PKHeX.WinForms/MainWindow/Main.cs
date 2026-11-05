@@ -22,6 +22,8 @@ namespace PKHeX.WinForms;
 
 public partial class Main : Form, Theming.IThemedControl
 {
+    private readonly EntityHeader entityHeader = new();
+
     public Main()
     {
         InitializeComponent();
@@ -30,6 +32,13 @@ public partial class Main : Form, Theming.IThemedControl
             pane.Paint += PaintCard;
             pane.Resize += (s, _) => ((Control)s!).Invalidate();
         }
+        // Summary band above the editor hosts the sprite card and the legality chip.
+        splitContainer1.Panel1.Controls.Add(entityHeader);
+        entityHeader.SendToBack(); // dock before the fill-docked editor
+        entityHeader.Controls.Add(PN_HeroCard);
+        entityHeader.Controls.Add(PB_Legal);
+        PB_Legal.Anchor = AnchorStyles.None;
+
         // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
         PN_HeroCard.Controls.Add(dragout);
         EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
@@ -814,7 +823,7 @@ public partial class Main : Form, Theming.IThemedControl
         Menu_ShowdownExportCurrentBox.Visible = sav.HasBox;
 
         Settings.Startup.LoadSaveFile(path);
-        if (Settings.Sounds.PlaySoundSAVLoad)
+        if (Settings.Sounds.PlaySoundSAVLoad && Visible) // no chime for the save loaded at startup
             SystemSounds.Asterisk.Play();
         return true;
     }
@@ -1177,6 +1186,7 @@ public partial class Main : Form, Theming.IThemedControl
             pb.BackColor = SlotUtil.GoodDataColor;
 
         UpdateHeroCardTypes(pk);
+        entityHeader.SetEntity(pk);
     }
 
     private void RefreshModifiedIndicator(object? sender, EventArgs e)
@@ -1227,6 +1237,7 @@ public partial class Main : Form, Theming.IThemedControl
         PB_Legal.Visible = true;
         bool isValid = (sender as bool?) != false;
         PB_Legal.SetFromLegality(isValid);
+        entityHeader.SetEntity(PKME_Tabs.Data);
         toolTip.SetToolTip(PB_Legal, isValid ? MsgLegalityHoverValid : MsgLegalityHoverInvalid);
     }
 

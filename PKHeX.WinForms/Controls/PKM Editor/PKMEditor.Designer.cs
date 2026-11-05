@@ -384,11 +384,11 @@ namespace PKHeX.WinForms.Controls
             Hidden_TC.Controls.Add(Hidden_Cosmetic);
             Hidden_TC.Controls.Add(Hidden_OTMisc);
             Hidden_TC.ItemSize = new System.Drawing.Size(0, 1);
-            Hidden_TC.Location = new System.Drawing.Point(96, -3);
+            Hidden_TC.Location = new System.Drawing.Point(110, -3);
             Hidden_TC.Margin = new System.Windows.Forms.Padding(0);
             Hidden_TC.Name = "Hidden_TC";
             Hidden_TC.SelectedIndex = 0;
-            Hidden_TC.Size = new System.Drawing.Size(339, 513);
+            Hidden_TC.Size = new System.Drawing.Size(325, 513);
             Hidden_TC.SizeMode = System.Windows.Forms.TabSizeMode.Fixed;
             Hidden_TC.TabIndex = 1;
             Hidden_TC.TabStop = false;
@@ -3298,10 +3298,10 @@ namespace PKHeX.WinForms.Controls
             // TC_Editor
             //
             TC_Editor.ItemHeight = 40;
-            TC_Editor.Location = new System.Drawing.Point(0, 56);
+            TC_Editor.Location = new System.Drawing.Point(0, 8);
             TC_Editor.Margin = new System.Windows.Forms.Padding(0);
             TC_Editor.Name = "TC_Editor";
-            TC_Editor.Size = new System.Drawing.Size(96, 320);
+            TC_Editor.Size = new System.Drawing.Size(110, 320);
             TC_Editor.TabIndex = 0;
             TC_Editor.SelectedIndexChanged += ChangeSelectedTabIndex;
             // 

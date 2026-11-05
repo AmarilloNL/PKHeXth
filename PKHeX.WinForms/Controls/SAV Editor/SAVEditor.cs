@@ -69,6 +69,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     public SAVEditor()
     {
         InitializeComponent();
+        Tab_Box.Resize += (_, _) => CenterBoxVertically();
 
         L_SlotOccupied = [L_DC1, L_DC2];
         TB_SlotEXP = [TB_Daycare1XP, TB_Daycare2XP];
@@ -1139,6 +1140,9 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         return WindowTranslationRequired;
     }
 
+    // Balance spare height above and below the box grid.
+    private void CenterBoxVertically() => Box.Top = Math.Max(LogicalToDeviceUnits(7), (Tab_Box.Height - Box.Height) / 2);
+
     private void ToggleViewReset()
     {
         // Close sub-forms that are SaveFile dependent
@@ -1153,6 +1157,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             if (newSlots)
             {
                 Box.HorizontallyCenter(Tab_Box);
+                CenterBoxVertically();
                 foreach (var pb in Box.SlotPictureBoxes)
                     pb.ContextMenuStrip = menu.mnuVSD;
 

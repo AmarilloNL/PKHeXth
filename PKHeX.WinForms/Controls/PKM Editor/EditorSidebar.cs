@@ -20,9 +20,6 @@ public sealed class EditorSidebar : Control, IThemedControl
     [DefaultValue(40)]
     public int ItemHeight { get; set; } = 40;
 
-    [DefaultValue(7)]
-    public int PipSize { get; set; } = 7;
-
     public event EventHandler? SelectedIndexChanged;
 
     public EditorSidebar()
@@ -49,12 +46,12 @@ public sealed class EditorSidebar : Control, IThemedControl
         }
     }
 
-    public void AddItem(string name, string text, Color pip)
-        => InsertItem(_items.Count, name, text, pip);
+    public void AddItem(string name, string text, Color pip, string glyph = "")
+        => InsertItem(_items.Count, name, text, pip, glyph);
 
-    public void InsertItem(int index, string name, string text, Color pip)
+    public void InsertItem(int index, string name, string text, Color pip, string glyph = "")
     {
-        _items.Insert(index, new Item(name, text, pip));
+        _items.Insert(index, new Item(name, text, pip, glyph));
         int before = _selectedIndex;
         if (_selectedIndex == -1)
             _selectedIndex = 0;
@@ -262,42 +259,40 @@ public sealed class EditorSidebar : Control, IThemedControl
 
         var item = _items[index];
         bool invalid = _invalid.Contains(item.Name);
-        var pipColor = invalid ? p.Invalid : item.Pip;
-        DrawPip(g, rect, pipColor, selected, invalid, p);
+        DrawIcon(g, rect, item, selected, invalid, p);
         DrawLabel(g, rect, item.Text, p, selected, invalid);
 
         if (selected && Focused && ShowFocusCues)
             DrawFocusRing(g, rect, p);
     }
 
-    private void DrawPip(Graphics g, Rectangle rect, Color pip, bool selected, bool invalid, ThemePalette p)
+    // Segoe Fluent Icons (Win11) or MDL2 Assets (Win10); falls back to a colored dot when neither exists.
+    private static readonly Font? IconFont = Array.Find(FontFamily.Families, f => f.Name == "Segoe Fluent Icons")
+        is { } fluent ? new Font(fluent, 11f) : Array.Find(FontFamily.Families, f => f.Name == "Segoe MDL2 Assets")
+        is { } mdl2 ? new Font(mdl2, 11f) : null;
+
+    private const int IconSize = 18;
+
+    private static void DrawIcon(Graphics g, Rectangle rect, Item item, bool selected, bool invalid, ThemePalette p)
     {
-        var prev = g.SmoothingMode;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-
-        int x = rect.X + 16;
-        int y = rect.Y + ((rect.Height - PipSize) / 2);
-        var dot = new Rectangle(x, y, PipSize, PipSize);
-
-        using (var brush = new SolidBrush(pip))
-            g.FillEllipse(brush, dot);
-        if (!selected)
+        var box = new Rectangle(rect.X + 15, rect.Y + ((rect.Height - IconSize) / 2), IconSize, IconSize);
+        var color = invalid ? p.Invalid : selected ? item.Pip : p.TextMuted;
+        if (IconFont is not null && item.Glyph.Length != 0)
         {
-            using var ring = new Pen(Color.FromArgb(120, pip), 1f);
-            g.DrawEllipse(ring, new Rectangle(dot.X - 1, dot.Y - 1, dot.Width + 1, dot.Height + 1));
+            TextRenderer.DrawText(g, item.Glyph, IconFont, box, color,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         }
-        if (invalid)
+        else
         {
-            using var halo = new Pen(p.Invalid, 1f);
-            g.DrawEllipse(halo, new Rectangle(dot.X - 2, dot.Y - 2, dot.Width + 3, dot.Height + 3));
+            Shapes.Fill(g, Rectangle.Inflate(box, -5, -5), 4, color);
         }
-
-        g.SmoothingMode = prev;
+        if (invalid) // attention dot
+            Shapes.Fill(g, new Rectangle(box.Right - 5, box.Y - 1, 7, 7), 4, p.Invalid, p.Surface0);
     }
 
     private void DrawLabel(Graphics g, Rectangle rect, string text, ThemePalette p, bool selected, bool invalid)
     {
-        int textX = rect.X + 16 + PipSize + 9;
+        int textX = rect.X + 15 + IconSize + 10;
         var textRect = new Rectangle(textX, rect.Y, rect.Right - textX - 4, rect.Height);
 
         using var flags = new StringFormat
@@ -325,7 +320,7 @@ public sealed class EditorSidebar : Control, IThemedControl
 
     protected override AccessibleObject CreateAccessibilityInstance() => new SidebarAccessible(this);
 
-    private sealed record Item(string Name, string Text, Color Pip);
+    private sealed record Item(string Name, string Text, Color Pip, string Glyph);
 
     private sealed class SidebarAccessible(EditorSidebar owner) : ControlAccessibleObject(owner)
     {

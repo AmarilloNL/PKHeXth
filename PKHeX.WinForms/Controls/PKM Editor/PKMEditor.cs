@@ -83,12 +83,12 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void InitializeSidebar()
     {
-        TC_Editor.AddItem("Main",     "Main",     ContestColor.Cool);
-        TC_Editor.AddItem("Met",      "Met",      ContestColor.Beauty);
-        TC_Editor.AddItem("Stats",    "Stats",    ContestColor.Cute);
-        TC_Editor.AddItem("Moves",    "Moves",    ContestColor.Clever);
-        TC_Editor.AddItem("Cosmetic", "Cosmetic", ContestColor.Tough);
-        TC_Editor.AddItem("OTMisc",   "OT/Misc",  Color.RosyBrown);
+        TC_Editor.AddItem("Main",     "Main",     ContestColor.Cool,   "\uE946");
+        TC_Editor.AddItem("Met",      "Met",      ContestColor.Beauty, "\uE81D");
+        TC_Editor.AddItem("Stats",    "Stats",    ContestColor.Cute,   "\uE9D2");
+        TC_Editor.AddItem("Moves",    "Moves",    ContestColor.Clever, "\uE945");
+        TC_Editor.AddItem("Cosmetic", "Cosmetic", ContestColor.Tough,  "\uE790");
+        TC_Editor.AddItem("OTMisc",   "OT/Misc",  Color.RosyBrown,     "\uE77B");
     }
 
     private void ClickManualAbility(object sender, EventArgs e)
@@ -2147,7 +2147,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         else if (Entity.Format != 1 && !Hidden_TC.TabPages.Contains(Hidden_Met))
         {
             Hidden_TC.TabPages.Insert(1, Hidden_Met);
-            TC_Editor.InsertItem(1, "Met", "Met", ContestColor.Beauty);
+            TC_Editor.InsertItem(1, "Met", "Met", ContestColor.Beauty, "\uE81D");
             isTranslationRequired = true;
         }
 
@@ -2159,7 +2159,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         else if (Entity.Format > 2 && !Hidden_TC.TabPages.Contains(Hidden_Cosmetic))
         {
             Hidden_TC.TabPages.Insert(4, Hidden_Cosmetic);
-            TC_Editor.InsertItem(4, "Cosmetic", "Cosmetic", ContestColor.Tough);
+            TC_Editor.InsertItem(4, "Cosmetic", "Cosmetic", ContestColor.Tough, "\uE790");
             isTranslationRequired = true;
         }
 
