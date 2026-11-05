@@ -30,7 +30,13 @@ public partial class StatEditor : UserControl
             var bar = new StatBar { Margin = new Padding(8, 8, 0, 0), Size = new Size(44, 10) };
             b.Parent!.Controls.Add(bar);
             Bars.Add(bar);
+            // Keep label, boxes and bar on one line; the bar is sized to the remaining width.
+            ((FlowLayoutPanel)b.Parent).WrapContents = false;
+            ((FlowLayoutPanel)b.Parent.Parent!).WrapContents = false;
         }
+
+        ApplyGrid();
+        FLP_Stats.Layout += (_, _) => FitBars();
 
         TB_BST.Enabled = true;
         TB_BST.ReadOnly = true;
@@ -465,6 +471,63 @@ public partial class StatEditor : UserControl
     }
 
     private readonly List<StatBar> Bars = [];
+
+    /// <summary> The row container, so the host editor can spread the rows over the page height. </summary>
+    internal FlowLayoutPanel Rows => FLP_Stats;
+
+    // Same grid as the other editor tabs: labels left-aligned on an indent, roomier value columns with their headers
+    // centered above them. Logical units; the window's UI scaling applies afterwards.
+    private void ApplyGrid()
+    {
+        const int indent = 8, label = 64, gap = 8;
+        foreach (var l in new[] { Label_HP, Label_ATK, Label_DEF, Label_SPA, Label_SPC, Label_SPD, Label_SPE, Label_Total })
+        {
+            l.Width = label;
+            l.TextAlign = ContentAlignment.MiddleLeft;
+            l.Padding = new Padding(indent, 0, 0, 0);
+        }
+        FLP_SpALeft.Width = label;
+        foreach (var l in new[] { Label_CharacteristicPrefix, Label_HiddenPowerPrefix })
+        {
+            l.TextAlign = ContentAlignment.MiddleLeft;
+            l.Padding = new Padding(indent, 0, 0, 0);
+        }
+        FLP_AlphaNoble.Margin = FLP_AlphaNoble.Margin with { Left = label };
+
+        (MaskedTextBox[] Column, Control Header, Control? Total, int Width)[] columns =
+        [
+            (MT_Base, Label_Base, TB_BST, 40),
+            (MT_IVs, Label_IVs, TB_IVTotal, 32),
+            (MT_EVs, Label_EVs, TB_EVTotal, 40),
+            (MT_AVs, Label_AVs, TB_AVTotal, 40),
+            (MT_GVs, Label_GVs, null, 32),
+            (MT_Stats, Label_Stats, null, 48),
+        ];
+        foreach (var (column, header, total, width) in columns)
+        {
+            foreach (var box in column)
+                box.Width = width;
+            if (total is not null)
+                total.Width = width;
+            header.Width = width + gap; // the header spans box + gap, shifted half a gap left (below), so it centers on the box
+        }
+        FLP_HackedStats.Width = CHK_HackedStats.Width = label - (gap / 2);
+    }
+
+    // The base-stat bars take whatever width is left in their row, up to the page's right padding.
+    private void FitBars()
+    {
+        int right = FLP_Stats.ClientSize.Width - LogicalToDeviceUnits(16);
+        foreach (var bar in Bars)
+        {
+            int x = bar.Left;
+            for (var c = bar.Parent; c is not null && c != FLP_Stats; c = c.Parent)
+                x += c.Left;
+            int w = Math.Max(LogicalToDeviceUnits(24), right - x);
+            if (bar.Width != w)
+                bar.Width = w;
+        }
+    }
 
     public void UpdateRandomIVs(object sender, EventArgs e)
     {

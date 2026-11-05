@@ -180,13 +180,21 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         foreach (var title in new[] { GB_OT, GB_nOT, GB_CurrentMoves, GB_RelearnMoves })
         {
             title.Font = new Font(title.Font, FontStyle.Bold);
-            title.Margin = new Padding(8, title == GB_CurrentMoves ? title.Margin.Top : 14, 0, 4);
+            title.Margin = new Padding(GridIndent, 14, 0, 4);
         }
-        GB_CurrentMoves.AutoSize = false;
-        GB_CurrentMoves.Width = 192 - 8; // the PP / Ups header that follows must stay at x=192, above its columns
+        GB_CurrentMoves.AutoSize = false; // sized in StretchMoves so the PP / Ups header that follows sits above its columns
+        FLP_PP.Margin = GB_CurrentMoves.Margin with { Left = 0 };
+        FLP_Moves.Dock = DockStyle.Fill;
+        FLP_Moves.Padding = FLP_Main.Padding;
+        L_AlphaMastered.TextAlign = ContentAlignment.MiddleLeft;
+        L_AlphaMastered.Padding = new Padding(GridIndent, 0, 0, 0);
+        FLP_AlphaMove.Margin = FLP_AlphaMove.Margin with { Left = 0 };
+        foreach (var mc in new[] { MC_Move1, MC_Move2, MC_Move3, MC_Move4 })
+            mc.Margin = new Padding(GridIndent, 0, 0, 0);
 
         FLP_Main.SizeChanged += (_, _) => StretchFields();
-        foreach (var flp in new[] { FLP_Main, FLP_Met, FLP_OTMisc })
+        FLP_Moves.SizeChanged += (_, _) => StretchMoves();
+        foreach (var flp in new[] { FLP_Main, FLP_Met, FLP_OTMisc, FLP_Moves, Stats.Rows })
         {
             var page = flp;
             page.Layout += (_, _) => JustifyRows(page);
@@ -199,8 +207,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     private void StretchFields()
     {
         int label = Label_Species.Width;
-        int reserve = Math.Max(TB_AbilityNumber.Width, BTN_NicknameWarn.Width) + (2 * TB_ExtraByte.Margin.Left);
-        int field = FLP_Main.ClientSize.Width - label - reserve;
+        int field = FLP_Main.ClientSize.Width - label - FieldReserve;
         if (field < CB_Species.MinimumSize.Width || field < 100)
             return;
 
@@ -222,6 +229,35 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         CB_ExtraBytes.Width = field - gap - TB_ExtraByte.Width;
         TB_EC.Width = field - gap - BTN_RerollEC.Width;
         GB_EggConditions.Width = CB_EggLocation.Left + field + gap;
+    }
+
+    /// <summary> Space kept right of the fields, for the small boxes/icons that follow some of them. </summary>
+    private int FieldReserve => Math.Max(TB_AbilityNumber.Width, BTN_NicknameWarn.Width) + (2 * TB_ExtraByte.Margin.Left);
+
+    // Move rows end where the other tabs' fields end; relearn / alpha boxes line up under the move boxes, and the
+    // PP / Ups header sits above its columns.
+    private void StretchMoves()
+    {
+        int right = FLP_Moves.ClientSize.Width - FieldReserve;
+        if (right < 200)
+            return;
+        foreach (var mc in new[] { MC_Move1, MC_Move2, MC_Move3, MC_Move4 })
+            mc.FitWidth(right - mc.Margin.Left);
+
+        var first = MC_Move1;
+        int moveLeft = first.Margin.Left + first.MoveLeft;
+        foreach (var cb in new[] { CB_RelearnMove1, CB_RelearnMove2, CB_RelearnMove3, CB_RelearnMove4 })
+        {
+            cb.Width = first.MoveWidth;
+            cb.Parent!.Margin = cb.Parent.Margin with { Left = moveLeft - cb.Left };
+        }
+        L_AlphaMastered.Width = moveLeft;
+        CB_AlphaMastered.Width = first.MoveWidth;
+
+        var (pp, ups) = first.ColumnWidths;
+        Label_CurPP.Width = pp;
+        Label_PPups.Width = ups;
+        GB_CurrentMoves.Width = first.Margin.Left + first.PPLeft - GB_CurrentMoves.Margin.Left;
     }
 
     // Short tabs spread their rows over the page height (up to ~20px between rows), so they don't leave the bottom of
@@ -246,9 +282,11 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             if (rows.Count == 0)
                 return;
 
-            int natural = flp.Padding.Vertical + rows.Sum(r => r.Height + BaseMargins[r].Vertical);
+            // Controls sharing a flow line (e.g. a title and its column header) count as one row.
+            var lines = rows.GroupBy(r => r.Top - r.Margin.Top).ToList();
+            int natural = flp.Padding.Vertical + lines.Sum(l => l.Max(r => r.Height + BaseMargins[r].Vertical));
             int slack = flp.ClientSize.Height - natural - (int)(12 * Theming.Theme.UiScale);
-            int extra = Math.Clamp(slack / (rows.Count * 2), 0, (int)(10 * Theming.Theme.UiScale));
+            int extra = Math.Clamp(slack / (lines.Count * 2), 0, (int)(10 * Theming.Theme.UiScale));
             foreach (var r in rows)
             {
                 var b = BaseMargins[r];
@@ -2253,6 +2291,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         B_RelearnFlags.Visible = t is ITechRecord;
         B_MoveShop.Visible = t is IMoveShop8Mastery;
         B_PlusRecord.Visible = t is IPlusRecord;
+        panel1.Visible = t is ITechRecord or IMoveShop8Mastery or IPlusRecord; // no empty button row
         FLP_HTLanguage.Visible = format >= 8;
         L_AlphaMastered.Visible = CB_AlphaMastered.Visible = t is PA8;
         FLP_ObedienceLevel.Visible = t is IObedienceLevel;
