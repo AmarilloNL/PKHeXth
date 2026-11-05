@@ -1,22 +1,46 @@
-![Screenshot 2025-11-10 151512](https://github.com/user-attachments/assets/9b116801-8935-4441-9bfe-d76192f84857)
-> [!important]
-> i hak so I made my own PKHeXth fork to tinker with.
-> It comes with plugins already installed that I and other people made.
+# PKHeXth — Modern UI
 
-
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/hexbyt3/pkhexth/total) ![GitHub Release](https://img.shields.io/github/v/release/hexbyt3/pkhexth)
-
-
----
-<div>
-  <span>English</span> / <a href=".github/README-es.md">Español</a> / <a href=".github/README-fr.md">Français</a> / <a href=".github/README-de.md">Deutsch</a> / <a href=".github/README-it.md">Italiano</a> / <a href=".github/README-ko.md">한국어</a> / <a href=".github/README-zh-Hant.md">繁體中文</a> / <a href=".github/README-zh-Hans.md">简体中文</a>
-</div>
+A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork of [kwsch/PKHeX](https://github.com/kwsch/PKHeX)) with a redesigned interface: calmer, easier to read, and easier to find your way around. Same save editing engine, same bundled plugins.
 
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
-Pokémon core series save editor, programmed in [C#](https://en.wikipedia.org/wiki/C_Sharp_%28programming_language%29).
+![Main window, dark theme](.github/screenshots/main-dark.png)
 
-Supports the following files:
+| Light theme | Save tools |
+| --- | --- |
+| ![Main window, light theme](.github/screenshots/main-light.png) | ![Save editor tiles](.github/screenshots/save-tools.png) |
+
+![Settings](.github/screenshots/settings.png)
+
+## What's different
+
+**Main window**
+- One app bar with the trainer summary and a clear **Open save file** / **Export save** button.
+- Pokémon summary header: sprite, name, gender and shiny marks, type chips, level, and the legality badge.
+- Editor and box panes drawn as cards; sidebar sections with icons, and a red dot on sections that contain invalid data.
+- Box and party slots as rounded tiles, with box wallpapers shown through in light mode.
+- Save editors on the SAV tab as labelled icon tiles instead of a wall of small buttons.
+
+**Settings**
+- One searchable page (Ctrl+F) with a category sidebar instead of 20+ tabs of property grids.
+- Every setting is a row with a plain-language title, its description, and a fitting control: switch, dropdown, number, or color.
+- Theme changes apply as soon as Settings closes.
+
+**Everywhere** (including sub-windows and plugin windows)
+- Dark and light themes with an accent color picked from the loaded game (or your own color).
+- Flat underline tabs, rounded buttons, themed text, number, date and dropdown fields, rounded group boxes.
+- The Windows title bar matches the app.
+
+**Fixes**
+- Auto-Legality's *Legalize* no longer crashes when its encounter priority list contains "None".
+- No "save loaded" chime for the save that opens at startup.
+
+Theme options live in **Options → Settings → Theme** (System / Light / Dark, accent source, custom accent color).
+
+## Supported files
+
+PKHeX is a Pokémon core series save editor, programmed in [C#](https://en.wikipedia.org/wiki/C_Sharp_%28programming_language%29). It supports:
+
 * Save files ("main", \*.sav, \*.dsv, \*.dat, \*.gci, \*.bin)
 * GameCube Memory Card files (\*.raw, \*.bin) containing GC Pokémon savegames.
 * Individual Pokémon entity files (.pk\*, \*.ck3, \*.xk3, \*.pb7, \*.sk2, \*.bk4, \*.rk4)
@@ -25,30 +49,28 @@ Supports the following files:
 * Importing teams from Decrypted 3DS Battle Videos
 * Transferring from one generation to another, converting formats along the way.
 
-Data is displayed in a view which can be edited and saved.
-The interface can be translated with resource/external text files so that different languages can be supported.
-
 Pokémon Showdown sets and QR codes can be imported/exported to assist in sharing.
 
 PKHeX expects save files that are not encrypted with console-specific keys. Use a savedata manager to import and export savedata from the console ([Checkpoint](https://github.com/FlagBrew/Checkpoint), save_manager, [JKSM](https://github.com/J-D-K/JKSM), or SaveDataFiler).
 
 **We do not support or condone cheating at the expense of others. Do not use significantly hacked Pokémon in battle or in trades with those who are unaware hacked Pokémon are in use.**
 
-## Screenshots
-
-<img width="897" height="504" alt="Screenshot 2026-04-17 071709" src="https://github.com/user-attachments/assets/cde60050-856a-4488-9674-7d45ef93ad36" />
-
 ## Building
 
 PKHeX is a Windows Forms application which requires [.NET 10.0](https://dotnet.microsoft.com/download/dotnet/10.0).
 
-The executable can be built with any compiler that supports C# 13.
+```
+dotnet build PKHeX.WinForms/PKHeX.WinForms.csproj -c Release
+```
 
-### Build Configurations
+The executable can be built with any compiler that supports C# 13. It can also be opened in [Visual Studio](https://visualstudio.microsoft.com/downloads/) via the .sln or .csproj file. Use the Debug or Release configuration; there isn't any platform specific code to worry about.
 
-Use the Debug or Release build configurations when building. There isn't any platform specific code to worry about!
+## Credits
 
-## Dependencies
+- [kwsch](https://github.com/kwsch) and contributors for [PKHeX](https://github.com/kwsch/PKHeX).
+- [hexbyt3](https://github.com/hexbyt3) for PKHeXth and the bundled plugins (Auto-Legality Mod, seed finders and others).
+
+### Dependencies
 
 PKHeX's QR code generation code is taken from [QRCoder](https://github.com/codebude/QRCoder), which is licensed under [the MIT license](https://github.com/codebude/QRCoder/blob/master/LICENSE.txt).
 
@@ -56,6 +78,4 @@ PKHeX's shiny sprite collection is taken from [pokesprite](https://github.com/ms
 
 PKHeX's Pokémon Legends: Arceus sprite collection is taken from the [National Pokédex - Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934) project and its abundance of collaborators and contributors.
 
-### IDE
-
-PKHeX can be opened with IDEs such as [Visual Studio](https://visualstudio.microsoft.com/downloads/) by opening the .sln or .csproj file.
+Upstream README translations: <a href=".github/README-es.md">Español</a> / <a href=".github/README-fr.md">Français</a> / <a href=".github/README-de.md">Deutsch</a> / <a href=".github/README-it.md">Italiano</a> / <a href=".github/README-ko.md">한국어</a> / <a href=".github/README-zh-Hant.md">繁體中文</a> / <a href=".github/README-zh-Hans.md">简体中文</a>
