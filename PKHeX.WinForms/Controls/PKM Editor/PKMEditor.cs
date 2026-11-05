@@ -199,6 +199,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             var page = flp;
             page.Layout += (_, _) => JustifyRows(page);
         }
+        FLP_CosmeticTop.Layout += (_, _) => JustifyRows(FLP_CosmeticTop, center: true); // a gallery, not a form: centered
     }
 
 
@@ -265,7 +266,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     private readonly Dictionary<Control, Padding> BaseMargins = [];
     private bool Justifying;
 
-    private void JustifyRows(FlowLayoutPanel flp)
+    private void JustifyRows(FlowLayoutPanel flp, bool center = false)
     {
         if (Justifying || !flp.Visible)
             return;
@@ -287,12 +288,19 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             int natural = flp.Padding.Vertical + lines.Sum(l => l.Max(r => r.Height + BaseMargins[r].Vertical));
             int slack = flp.ClientSize.Height - natural - (int)(12 * Theming.Theme.UiScale);
             int extra = Math.Clamp(slack / (lines.Count * 2), 0, (int)(10 * Theming.Theme.UiScale));
-            foreach (var r in rows)
+            foreach (var line in lines)
             {
-                var b = BaseMargins[r];
-                var m = new Padding(b.Left, b.Top + extra, b.Right, b.Bottom + extra);
-                if (r.Margin != m)
-                    r.Margin = m;
+                var items = line.OrderBy(r => r.Left).ToList();
+                // Centered pages: the first control's left margin centers the whole line.
+                int span = items[^1].Right + items[^1].Margin.Right - items[0].Left;
+                int left = center ? Math.Max(0, (flp.ClientSize.Width - span) / 2) : -1;
+                foreach (var r in items)
+                {
+                    var b = BaseMargins[r];
+                    var m = new Padding(left >= 0 && r == items[0] ? left : b.Left, b.Top + extra, b.Right, b.Bottom + extra);
+                    if (r.Margin != m)
+                        r.Margin = m;
+                }
             }
         }
         finally

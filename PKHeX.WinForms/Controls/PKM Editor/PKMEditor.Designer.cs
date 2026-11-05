@@ -2673,7 +2673,7 @@ namespace PKHeX.WinForms.Controls
             SizeCP.Location = new System.Drawing.Point(48, 256);
             SizeCP.Margin = new System.Windows.Forms.Padding(48, 8, 0, 0);
             SizeCP.Name = "SizeCP";
-            SizeCP.Size = new System.Drawing.Size(228, 96);
+            SizeCP.Size = new System.Drawing.Size(252, 96);
             SizeCP.TabIndex = 3;
             // 
             // ShinyLeaf

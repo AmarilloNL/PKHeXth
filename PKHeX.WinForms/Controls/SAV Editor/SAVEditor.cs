@@ -1169,6 +1169,39 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         top += LogicalToDeviceUnits(8);
         FLP_SAVtools.Dock = DockStyle.None;
         FLP_SAVtools.SetBounds(0, top, Tab_SAV.ClientSize.Width, Math.Max(0, Tab_SAV.ClientSize.Height - top));
+        FillWidth();
+    }
+
+    // Tool tiles, and the action buttons above them, share the full width in equal columns.
+    private void FillWidth()
+    {
+        // Measured, not recomputed: padding and margins have been through DPI and UI scaling (tile margin = padding).
+        var pad = FLP_SAVtools.Padding;
+        int m = pad.Left;
+        int width = FLP_SAVtools.Width - pad.Horizontal;
+
+        var actions = FLP_SAVToolsMisc.Controls.Cast<Control>().Where(c => c.Visible).ToList();
+        FLP_SAVToolsMisc.Padding = new Padding(pad.Left, 0, pad.Right, 0);
+        foreach (var a in actions)
+        {
+            a.Margin = new Padding(m, 0, m, 0);
+            a.Width = (width / actions.Count) - (2 * m);
+        }
+
+        var tiles = FLP_SAVtools.Controls.Cast<Control>().Where(c => c.Visible).ToList();
+        if (tiles.Count == 0)
+            return;
+        int cell = (tiles[0].Height * 3 / 2) + (2 * m); // tiles stay at least 3:2
+        int cols = Math.Clamp(width / cell, 1, tiles.Count);
+        int rows = (tiles.Count + cols - 1) / cols;
+        if ((rows * tiles[0].Height) + (rows * 2 * m) + (2 * m) > FLP_SAVtools.ClientSize.Height)
+            width -= SystemInformation.VerticalScrollBarWidth; // the tiles will scroll
+        int w = (width / Math.Clamp(width / cell, 1, tiles.Count)) - (2 * m);
+        foreach (var t in tiles)
+        {
+            if (t.Width != w)
+                t.Width = w;
+        }
     }
 
     private static string ToolGlyph(string name) => name switch

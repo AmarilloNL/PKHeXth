@@ -92,7 +92,8 @@ internal sealed class BorderPainter : NativeWindow
     private Padding ComputeInset(int width, int height)
     {
         // Measured glyph height (not the font's line spacing): tall fonts like the in-game one still center.
-        int text = TextRenderer.MeasureText("Ag", _c.Font, Size.Empty, TextFormatFlags.NoPadding).Height;
+        // +2: some fonts (the in-game one) draw descenders below their measured height, which would clip "g", "y"...
+        int text = TextRenderer.MeasureText("Ag", _c.Font, Size.Empty, TextFormatFlags.NoPadding).Height + 4;
         int top = Math.Max(1, (height - text) / 2);
         int bottom = Math.Max(1, height - text - top);
         int side = _c.LogicalToDeviceUnits(width < _c.LogicalToDeviceUnits(72) ? 2 : 6); // small boxes (PID, IDs, levels) keep their digits
