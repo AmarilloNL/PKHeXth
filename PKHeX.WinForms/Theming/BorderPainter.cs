@@ -37,6 +37,90 @@ internal sealed class BorderPainter : NativeWindow
         existing.Redraw();
     }
 
+    // Single-line text boxes: the frame lives in a padded non-client area so the text sits vertically centered with
+    // a left/right inset that matches the combo boxes (Windows text boxes cannot center text themselves).
+    private bool _padded;
+    private Padding _inset;
+
+    public static void AttachPadded(TextBoxBase tb)
+    {
+        if (tb.Multiline)
+        {
+            tb.BorderStyle = BorderStyle.FixedSingle;
+            Attach(tb);
+            return;
+        }
+        if (tb.BorderStyle != BorderStyle.None)
+        {
+            int height = tb.Height; // keep the designer height; the padding takes the place of the border
+            tb.AutoSize = false;
+            tb.BorderStyle = BorderStyle.None;
+            tb.Height = height;
+        }
+        if (!Attached.TryGetValue(tb, out var painter))
+        {
+            Attached.Add(tb, painter = new BorderPainter(tb) { _padded = true });
+            tb.Resize += (_, _) => painter.Reframe();
+            tb.FontChanged += (_, _) => painter.Reframe();
+            tb.HandleCreated += (_, _) => painter.Reframe();
+        }
+        painter.Reframe();
+    }
+
+    private void Reframe()
+    {
+        if (_c.IsHandleCreated)
+            SetWindowPos(_c.Handle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+
+    private Padding ComputeInset(int width, int height)
+    {
+        int text = _c.Font.Height;
+        int top = Math.Max(1, (height - text) / 2);
+        int bottom = Math.Max(1, height - text - top);
+        int side = _c.LogicalToDeviceUnits(width < _c.LogicalToDeviceUnits(72) ? 2 : 6); // small boxes (PID, IDs, levels) keep their digits
+        return new Padding(side, top, side, bottom);
+    }
+
+    private void CalcSize(ref Message m)
+    {
+        if (m.WParam != IntPtr.Zero)
+        {
+            var p = Marshal.PtrToStructure<NCCALCSIZE_PARAMS>(m.LParam);
+            p.rgrc0 = Shrink(p.rgrc0);
+            Marshal.StructureToPtr(p, m.LParam, false);
+        }
+        else
+        {
+            var r = Marshal.PtrToStructure<RECT>(m.LParam);
+            Marshal.StructureToPtr(Shrink(r), m.LParam, false);
+        }
+        m.Result = IntPtr.Zero;
+    }
+
+    private RECT Shrink(RECT r)
+    {
+        _inset = ComputeInset(r.Right - r.Left, r.Bottom - r.Top);
+        r.Left += _inset.Left;
+        r.Top += _inset.Top;
+        r.Right -= _inset.Right;
+        r.Bottom -= _inset.Bottom;
+        return r;
+    }
+
+    private const int WM_NCCALCSIZE = 0x0083;
+    private const int WM_NCHITTEST = 0x0084;
+    private const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, SWP_FRAMECHANGED = 0x0020;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NCCALCSIZE_PARAMS
+    {
+        public RECT rgrc0, rgrc1, rgrc2;
+        public IntPtr lppos;
+    }
+
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+
     private void Redraw()
     {
         if (_c.IsHandleCreated)
@@ -50,6 +134,16 @@ internal sealed class BorderPainter : NativeWindow
 
     protected override void WndProc(ref Message m)
     {
+        if (_padded && m.Msg == WM_NCCALCSIZE)
+        {
+            CalcSize(ref m);
+            return;
+        }
+        if (_padded && m.Msg == WM_NCHITTEST)
+        {
+            m.Result = 1; // HTCLIENT: clicks in the padding still place the caret
+            return;
+        }
         base.WndProc(ref m);
         if (m.Msg is WM_NCPAINT or WM_PAINT && !_c.IsDisposed) // .NET may draw the frame in either pass
             Paint();
@@ -72,6 +166,13 @@ internal sealed class BorderPainter : NativeWindow
             GetWindowRect(Handle, out var r);
             int w = r.Right - r.Left, h = r.Bottom - r.Top;
             using var g = Graphics.FromHdc(hdc);
+            if (_padded) // the padding belongs to the field: fill it so the text area and its margins read as one box
+            {
+                using var margin = new Region(new Rectangle(0, 0, w, h));
+                margin.Exclude(new Rectangle(_inset.Left, _inset.Top, w - _inset.Horizontal, h - _inset.Vertical));
+                using var back = new SolidBrush(_c.BackColor);
+                g.FillRegion(back, margin);
+            }
             // Rounded like the combo boxes: paint the corners in the parent color, then a rounded 1px frame.
             var frame = new Rectangle(0, 0, w - 1, h - 1);
             using var path = Shapes.RoundRect(frame, Math.Min(_c.LogicalToDeviceUnits(4), h / 3));

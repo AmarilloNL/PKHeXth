@@ -30,12 +30,12 @@ internal static class PopupStyle
             return;
         cb.DropDown += (_, _) =>
         {
-            var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf<COMBOBOXINFO>() };
-            if (!GetComboBoxInfo(cb.Handle, ref info) || info.hwndList == IntPtr.Zero)
+            var list = GetComboParts(cb).List;
+            if (list == IntPtr.Zero)
                 return;
-            Apply(info.hwndList);
+            Apply(list);
             if (Theme.Current.IsDark) // dark scrollbar in long lists
-                SetWindowTheme(info.hwndList, "DarkMode_Explorer", null);
+                SetWindowTheme(list, "DarkMode_Explorer", null);
         };
     }
 
@@ -55,6 +55,13 @@ internal static class PopupStyle
             return;
         first.Margin = first.Margin with { Top = 5 };
         last.Margin = last.Margin with { Bottom = 5 };
+    }
+
+    /// <summary> Native handles of a combo box's edit child (editable combos) and drop-down list. </summary>
+    internal static (IntPtr Edit, IntPtr List) GetComboParts(ComboBox cb)
+    {
+        var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf<COMBOBOXINFO>() };
+        return cb.IsHandleCreated && GetComboBoxInfo(cb.Handle, ref info) ? (info.hwndItem, info.hwndList) : (IntPtr.Zero, IntPtr.Zero);
     }
 
     private static void Apply(IntPtr hwnd)

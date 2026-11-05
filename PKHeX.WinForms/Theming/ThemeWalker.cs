@@ -133,15 +133,13 @@ internal static class ThemeWalker
 
             case TextBox tb:
                 SetFieldColors(tb, p);
-                tb.BorderStyle = BorderStyle.FixedSingle;
-                BorderPainter.Attach(tb);
+                BorderPainter.AttachPadded(tb);
                 break;
 
             case MaskedTextBox mtb:
                 SetFieldColors(mtb, p);
-                mtb.BorderStyle = BorderStyle.FixedSingle;
                 mtb.HidePromptOnLeave = true; // no "0____" placeholder underscores unless the field is being edited
-                BorderPainter.Attach(mtb);
+                BorderPainter.AttachPadded(mtb);
                 break;
 
             case NumericUpDown nud:

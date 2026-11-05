@@ -21,7 +21,7 @@ internal sealed class ComboPainter : NativeWindow
     private ComboPainter(ComboBox c)
     {
         _c = c;
-        c.HandleCreated += (_, _) => AssignHandle(c.Handle);
+        c.HandleCreated += (_, _) => { AssignHandle(c.Handle); SetEditMargin(); };
         c.MouseEnter += (_, _) => SetHover(true);
         c.MouseLeave += (_, _) => SetHover(c.ClientRectangle.Contains(c.PointToClient(Cursor.Position)));
         c.Enter += (_, _) => c.Invalidate();
@@ -33,8 +33,25 @@ internal sealed class ComboPainter : NativeWindow
         c.EnabledChanged += (_, _) => c.Invalidate();
         c.BackColorChanged += (_, _) => c.Invalidate(); // PKHeX tints invalid selections via BackColor
         if (c.IsHandleCreated)
+        {
             AssignHandle(c.Handle);
+            SetEditMargin();
+        }
     }
+
+    // Editable combos: indent the typing area so its text starts where list-only combos and text boxes start theirs.
+    private void SetEditMargin()
+    {
+        var edit = PopupStyle.GetComboParts(_c).Edit;
+        if (edit != IntPtr.Zero && _c.DropDownStyle != ComboBoxStyle.DropDownList)
+            SendMessage(edit, EM_SETMARGINS, (IntPtr)EC_LEFTMARGIN, (IntPtr)_c.LogicalToDeviceUnits(3));
+    }
+
+    private const int EM_SETMARGINS = 0x00D3;
+    private const int EC_LEFTMARGIN = 0x0001;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr w, IntPtr l);
 
     public static void Attach(ComboBox c)
     {
@@ -88,7 +105,7 @@ internal sealed class ComboPainter : NativeWindow
             return; // the edit child draws the text
 
         var text = _c.SelectedIndex >= 0 ? _c.GetItemText(_c.SelectedItem) : _c.Text;
-        var textRect = Rectangle.FromLTRB(_c.LogicalToDeviceUnits(narrow ? 5 : 8), 0, glyphRect.Left, r.Height);
+        var textRect = Rectangle.FromLTRB(_c.LogicalToDeviceUnits(4), 0, glyphRect.Left, r.Height);
         TextRenderer.DrawText(g, text, _c.Font, textRect, _c.Enabled ? (back == p.Surface1 ? _c.ForeColor : Theme.TextOn(back)) : p.TextDisabled,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }}
