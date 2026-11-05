@@ -31,10 +31,35 @@ public partial class PokeGrid : UserControl
 
         sizeW = info.Width;
         sizeH = info.Height;
+        (_cols, _rows) = (width, height);
         Generate(width, height);
         Slots = newCount;
 
         return true;
+    }
+
+    private int _cols, _rows;
+
+    /// <summary>
+    /// Grows the tiles so the grid fills <paramref name="area"/> (never below the normal tile size, at most 1.6x of it);
+    /// sprites stay centered at their native size.
+    /// </summary>
+    public void FitTo(Size area)
+    {
+        if (_cols == 0 || _rows == 0 || Entries.Count != _cols * _rows)
+            return;
+        int gapPx = (int)Math.Round(gap * Theming.Theme.UiScale);
+        int minW = Tile(sizeW), minH = Tile(sizeH);
+        int tileW = Math.Clamp(((area.Width - (2 * padEdge) + gapPx) / _cols) - gapPx, minW, (int)(minW * 1.6));
+        int tileH = Math.Clamp(((area.Height - (2 * padEdge) + gapPx) / _rows) - gapPx, minH, (int)(minH * 1.6));
+        SuspendLayout();
+        for (int i = 0; i < Entries.Count; i++)
+        {
+            int row = i / _cols, column = i % _cols;
+            Entries[i].SetBounds(padEdge + (column * (tileW + gapPx)), padEdge + (row * (tileH + gapPx)), tileW, tileH);
+        }
+        Size = new Size((2 * padEdge) - gapPx + (_cols * (tileW + gapPx)), (2 * padEdge) - gapPx + (_rows * (tileH + gapPx)));
+        ResumeLayout();
     }
 
     private const int padEdge = 1; // edges

@@ -69,7 +69,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     public SAVEditor()
     {
         InitializeComponent();
-        Tab_Box.Resize += (_, _) => CenterBoxVertically();
+        Tab_Box.Resize += (_, _) => FitBox();
         InitializeToolTiles();
 
         L_SlotOccupied = [L_DC1, L_DC2];
@@ -1201,8 +1201,16 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         _ => "",
     };
 
-    // Balance spare height above and below the box grid.
-    private void CenterBoxVertically() => Box.Top = Math.Max(LogicalToDeviceUnits(7), (Tab_Box.Height - Box.Height) / 2);
+    // The box grid fills the tab: tiles grow into the free space under the box selector row.
+    private void FitBox()
+    {
+        var grid = Box.BoxPokeGrid;
+        int pad = LogicalToDeviceUnits(8);
+        grid.FitTo(new Size(Tab_Box.ClientSize.Width - (2 * pad), Tab_Box.ClientSize.Height - grid.Top - (2 * pad)));
+        Box.RecenterControls();
+        Box.HorizontallyCenter(Tab_Box);
+        Box.Top = pad;
+    }
 
     private void ToggleViewReset()
     {
@@ -1218,7 +1226,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             if (newSlots)
             {
                 Box.HorizontallyCenter(Tab_Box);
-                CenterBoxVertically();
+                FitBox();
                 foreach (var pb in Box.SlotPictureBoxes)
                     pb.ContextMenuStrip = menu.mnuVSD;
 

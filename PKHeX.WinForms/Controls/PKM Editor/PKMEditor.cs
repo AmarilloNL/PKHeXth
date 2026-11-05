@@ -86,7 +86,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     // One spacing system for the editor tabs: a 124px label column, 160px fields (compound rows split that width),
     // checkboxes starting at the field column, bold left-aligned section titles. Values are designer units; the
     // form's DPI scaling is applied afterwards.
-    private const int GridLabel = 124, GridField = 180, GridGap = 4;
+    private const int GridLabel = 140, GridField = 180, GridGap = 4, GridIndent = 8;
 
     private void ApplyEditorGrid()
     {
@@ -106,9 +106,12 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         {
             l.AutoSize = false;
             l.Width = GridLabel;
+            if (l is Label label)
+                label.TextAlign = ContentAlignment.MiddleLeft;
+            l.Padding = new Padding(GridIndent, 0, 0, 0); // starts where the section titles start
         }
 
-        // Right-to-left label groups (label + checkbox/icon) fill the label column so their content meets the fields.
+        // Label groups (label + checkbox/icon) fill the label column, left to right from the same indent.
         // Fixed width, automatic height: a group whose label is hidden collapses, so empty rows (e.g. Form for a
         // species without forms) take no space.
         foreach (var left in new[] { FLP_PIDLeft, FLP_NicknameLeft, FLP_FormLeft, FLP_FriendshipLeft, FLP_EggPKRSLeft, FLP_BallLeft })
@@ -117,6 +120,10 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             left.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             left.MinimumSize = new Size(GridLabel, 0);
             left.MaximumSize = new Size(GridLabel, 0);
+            left.FlowDirection = FlowDirection.LeftToRight;
+            left.Padding = new Padding(GridIndent, 0, 0, 0);
+            foreach (var child in left.Controls.OfType<Label>())
+                child.TextAlign = ContentAlignment.MiddleLeft;
         }
         FLP_FormRight.AutoSize = true;
         FLP_FormRight.AutoSizeMode = AutoSizeMode.GrowAndShrink;
@@ -149,8 +156,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_MetLevel.Width = TB_ObedienceLevel.Width = 32;
         CHK_Fateful.Margin = new Padding(8, CHK_Fateful.Margin.Top, 0, 0);
 
-        // Checkboxes on their own row start at the field column.
-        CHK_AsEgg.Margin = new Padding(GridLabel, 8, 0, 4);
+        // Checkboxes on their own row sit in the label column, like the other row starts.
+        CHK_AsEgg.Margin = new Padding(GridIndent, 8, 0, 4);
 
         // Egg met group: same columns inside the frame.
         GB_EggConditions.Margin = new Padding(0, 4, 0, 0);
@@ -159,13 +166,15 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         foreach (var (label, field, y) in new (Label, Control, int)[] { (Label_EggLocation, CB_EggLocation, 22), (Label_EggDate, CAL_EggDate, 50) })
         {
             label.AutoSize = false;
-            label.TextAlign = ContentAlignment.MiddleRight;
-            label.SetBounds(0, y, GridLabel - 6, 24);
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            label.SetBounds(GridIndent + 4, y, GridLabel - GridIndent - 4, 24);
             field.SetBounds(GridLabel, y, GridField, field.Height);
         }
 
-        // The trainer ID control has its own 40px labels; indent it so they line up with the column above.
-        TID_Trainer.Margin = new Padding(GridLabel - 40, 0, 0, 0);
+        // The trainer ID control has its own labels: its first one spans the label column so the first ID box starts
+        // at the field column.
+        TID_Trainer.Margin = new Padding(GridIndent, 0, 0, 0);
+        TID_Trainer.AlignToGrid(GridLabel - GridIndent);
 
         // Section titles.
         foreach (var title in new[] { GB_OT, GB_nOT, GB_CurrentMoves, GB_RelearnMoves })
@@ -175,8 +184,84 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         }
         GB_CurrentMoves.AutoSize = false;
         GB_CurrentMoves.Width = 192 - 8; // the PP / Ups header that follows must stay at x=192, above its columns
+
+        FLP_Main.SizeChanged += (_, _) => StretchFields();
+        foreach (var flp in new[] { FLP_Main, FLP_Met, FLP_OTMisc })
+        {
+            var page = flp;
+            page.Layout += (_, _) => JustifyRows(page);
+        }
     }
 
+
+    // Fields run from the field column to the page's right edge (leaving room for the small boxes/icons that follow
+    // some fields), recomputed whenever the page size changes. Works in device pixels, after DPI/UI scaling.
+    private void StretchFields()
+    {
+        int label = Label_Species.Width;
+        int reserve = Math.Max(TB_AbilityNumber.Width, BTN_NicknameWarn.Width) + (2 * TB_ExtraByte.Margin.Left);
+        int field = FLP_Main.ClientSize.Width - label - reserve;
+        if (field < CB_Species.MinimumSize.Width || field < 100)
+            return;
+
+        Control[] fields =
+        [
+            CB_Species, TB_Nickname, CB_Nature, CB_StatNature, CB_Form, CB_HeldItem, CB_Ability, DEV_Ability, CB_Language,
+            CB_GameOrigin, CB_BattleVersion, CB_MetLocation, CB_Ball, CAL_MetDate, CB_GroundTile, CB_MetTimeOfDay,
+            CB_Country, CB_SubRegion, CB_3DSReg, CB_Handler, CB_HTLanguage, TB_HomeTracker, CAL_ReceivedDateTime,
+            CB_EggLocation, CAL_EggDate,
+        ];
+        foreach (var c in fields)
+            c.Width = field;
+
+        int gap = TB_ExtraByte.Margin.Left;
+        TB_PID.Width = field - UC_Gender.Width - BTN_RerollPID.Width;
+        Label_CurLevel.Width = field - TB_EXP.Width - TB_Level.Width;
+        TB_OT.Width = field - UC_OTGender.Width;
+        TB_HT.Width = field - UC_HTGender.Width;
+        CB_ExtraBytes.Width = field - gap - TB_ExtraByte.Width;
+        TB_EC.Width = field - gap - BTN_RerollEC.Width;
+        GB_EggConditions.Width = CB_EggLocation.Left + field + gap;
+    }
+
+    // Short tabs spread their rows over the page height (up to ~20px between rows), so they don't leave the bottom of
+    // the card empty. Recomputed on every layout pass; base margins are remembered per row.
+    private readonly Dictionary<Control, Padding> BaseMargins = [];
+    private bool Justifying;
+
+    private void JustifyRows(FlowLayoutPanel flp)
+    {
+        if (Justifying || !flp.Visible)
+            return;
+        Justifying = true;
+        try
+        {
+            var visible = flp.Controls.Cast<Control>().Where(c => c.Visible).ToList();
+            foreach (var r in visible)
+                BaseMargins.TryAdd(r, r.Margin);
+            // Collapsed rows (e.g. an empty form-argument row) take no space at all.
+            foreach (var r in visible.Where(c => c.Height <= 1))
+                r.Margin = BaseMargins[r] with { Top = 0, Bottom = 0 };
+            var rows = visible.Where(c => c.Height > 1).ToList();
+            if (rows.Count == 0)
+                return;
+
+            int natural = flp.Padding.Vertical + rows.Sum(r => r.Height + BaseMargins[r].Vertical);
+            int slack = flp.ClientSize.Height - natural - (int)(12 * Theming.Theme.UiScale);
+            int extra = Math.Clamp(slack / (rows.Count * 2), 0, (int)(10 * Theming.Theme.UiScale));
+            foreach (var r in rows)
+            {
+                var b = BaseMargins[r];
+                var m = new Padding(b.Left, b.Top + extra, b.Right, b.Bottom + extra);
+                if (r.Margin != m)
+                    r.Margin = m;
+            }
+        }
+        finally
+        {
+            Justifying = false;
+        }
+    }
 
     // Rows get a little breathing room.
     private void SpaceOutRows()
