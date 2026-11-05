@@ -25,7 +25,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     {
         InitializeComponent();
         InitializeSidebar();
-        InitializeSimpleMode();
+        SpaceOutRows();
 
         var font = FontUtil.GetPKXFont();
         TB_Nickname.Font = TB_OT.Font = TB_HT.Font = font;
@@ -82,25 +82,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_Friendship.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
     }
 
-    // Simple mode: expert-only fields stay hidden unless "Advanced fields" is on. Their values still load and save,
-    // and nothing reads these controls' visibility, so hiding them never drops data.
-    private Control[] AdvancedFields = [];
-    private readonly ToggleSwitch AdvancedToggle = new() { Name = "TS_Advanced", AccessibleName = "Advanced fields" };
-
-    private void InitializeSimpleMode()
+    // Rows get a little breathing room.
+    private void SpaceOutRows()
     {
-        AdvancedFields = [FLP_BattleVersion, FLP_ObedienceLevel, FLP_GroundTile, FLP_ExtraBytes, FLP_HomeTracker, FLP_EncryptionConstant, FA_Form, L_FormArgument];
-        foreach (var c in AdvancedFields)
-        {
-            var field = c;
-            field.VisibleChanged += (_, _) =>
-            {
-                if (field.Visible && !Main.Settings.EntityEditor.ShowAdvancedFields)
-                    field.Visible = false;
-            };
-        }
-
-        // Rows get a little breathing room.
         foreach (var flp in new[] { FLP_Main, FLP_Met, FLP_OTMisc })
         {
             foreach (Control row in flp.Controls)
@@ -109,40 +93,6 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
                     row.Margin = new Padding(0, 2, 0, 2);
             }
         }
-
-        var label = new Label { Text = "Advanced fields", AutoSize = true, Name = "L_Advanced" }; // stacked above the switch: the sidebar column is narrow
-        AdvancedToggle.Location = new Point(LogicalToDeviceUnits(14), Height - LogicalToDeviceUnits(36));
-        AdvancedToggle.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        label.Location = new Point(AdvancedToggle.Left, AdvancedToggle.Top - LogicalToDeviceUnits(22));
-        label.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        label.Click += (_, _) => AdvancedToggle.Checked = !AdvancedToggle.Checked;
-        AdvancedToggle.Checked = Main.Settings.EntityEditor.ShowAdvancedFields;
-        Controls.Add(AdvancedToggle);
-        Controls.Add(label);
-        AdvancedToggle.BringToFront(); // above the sidebar list, which extends down to here
-        label.BringToFront();
-        AdvancedToggle.CheckedChanged += (_, _) =>
-        {
-            if (Main.Settings.EntityEditor.ShowAdvancedFields == AdvancedToggle.Checked)
-                return;
-            Main.Settings.EntityEditor.ShowAdvancedFields = AdvancedToggle.Checked;
-            ApplyAdvancedFields();
-        };
-    }
-
-    /// <summary> Shows or hides expert-only fields per <see cref="EntityEditorSettings.ShowAdvancedFields"/>. </summary>
-    public void ApplyAdvancedFields()
-    {
-        bool show = Main.Settings.EntityEditor.ShowAdvancedFields;
-        AdvancedToggle.Checked = show;
-        if (!show)
-        {
-            foreach (var c in AdvancedFields)
-                c.Visible = false;
-            return;
-        }
-        if (FieldsLoaded) // reloading restores each field's per-format visibility
-            PopulateFields(PreparePKM(false), false);
     }
 
     private void InitializeSidebar()

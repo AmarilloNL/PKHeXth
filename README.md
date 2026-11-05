@@ -19,7 +19,6 @@ A fork of [hexbyt3/PKHeXth](https://github.com/hexbyt3/PKHeXth) (itself a fork o
 **Main window**
 - One app bar with the trainer summary and a clear **Open save file** / **Export save** button.
 - Pokémon summary header: sprite, name, gender and shiny marks, type chips, level, and the legality badge.
-- **Simple by default:** expert-only fields (form argument, battle version, obedience level, ground tile, encryption constant, HOME tracker, extra bytes) stay hidden until you flip **Advanced fields** at the bottom of the editor sidebar. Their values are kept either way.
 - Editor and box panes drawn as cards; sidebar sections with icons, and a red dot on sections that contain invalid data.
 - Box and party slots as rounded tiles, with box wallpapers shown through in light mode.
 - Save editors on the SAV tab as labelled icon tiles instead of a wall of small buttons.

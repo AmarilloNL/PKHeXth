@@ -396,7 +396,6 @@ public partial class Main : Form, Theming.IThemedControl
         // Update final settings
         ReloadProgramSettings(Settings);
         Theming.Theme.Refresh();
-        PKME_Tabs.ApplyAdvancedFields();
 
         if (form.BlankChanged) // changed by user
         {
