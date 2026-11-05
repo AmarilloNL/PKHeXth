@@ -39,15 +39,17 @@ public partial class Main : Form, Theming.IThemedControl
         entityHeader.Controls.Add(PB_Legal);
         PB_Legal.Anchor = AnchorStyles.None;
 
-        // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
         topHeader.OpenSave.Click += (s, e) => MainMenuOpen(s!, e);
         topHeader.ExportSave.Click += (s, e) => ClickExportSAV(s!, e);
+
+        // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
         PN_HeroCard.Controls.Add(dragout);
         EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
         dragout.SizeChanged += centerDragout;
         centerDragout(null, EventArgs.Empty);
         if (Settings.Display.DisableScalingDpi)
             AutoScaleMode = AutoScaleMode.Font;
+        ScaleUp(Theming.Theme.UiScale);
         C_SAV.SetEditEnvironment(new SaveDataEditor<PictureBox>(FakeSaveFile.Default, PKME_Tabs));
         FormLoadAddEvents();
         Application.Idle += RefreshModifiedIndicator;
@@ -59,6 +61,27 @@ public partial class Main : Form, Theming.IThemedControl
         }
 #endif
         FormInitializeSecond();
+    }
+
+    // Larger, roomier main window: lays everything out like a display-scaling change, then scales the fonts
+    // (which Control.Scale leaves alone). Controls that inherit their font follow their parent.
+    private void ScaleUp(float factor)
+    {
+        Scale(new SizeF(factor, factor));
+        ScaleFonts(this, factor);
+    }
+
+    private static readonly HashSet<string> InstalledFonts = [.. FontFamily.Families.Select(f => f.Name)];
+
+    private static void ScaleFonts(Control c, float factor)
+    {
+        // Fonts outside the system collection (PKHeX's private in-game font) cannot be re-created at another size for
+        // native text boxes, so those keep their original setting.
+        bool own = c.Parent?.Font is not { } inherited || !c.Font.Equals(inherited);
+        if (own && InstalledFonts.Contains(c.Font.FontFamily.Name))
+            c.Font = new Font(c.Font.FontFamily, c.Font.Size * factor, c.Font.Style);
+        foreach (Control child in c.Controls)
+            ScaleFonts(child, factor);
     }
 
     public void ApplyTheme(Theming.ThemePalette palette)

@@ -20,6 +20,12 @@ public sealed class EditorSidebar : Control, IThemedControl
     [DefaultValue(40)]
     public int ItemHeight { get; set; } = 40;
 
+    protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+    {
+        base.ScaleControl(factor, specified);
+        ItemHeight = (int)Math.Round(ItemHeight * factor.Height); // rows grow with the rest of the layout
+    }
+
     public event EventHandler? SelectedIndexChanged;
 
     public EditorSidebar()
@@ -266,11 +272,11 @@ public sealed class EditorSidebar : Control, IThemedControl
             DrawFocusRing(g, rect, p);
     }
 
-    private static Font? IconFont => Icons.Get(11f); // null when no icon font: draw a colored dot instead
+    private Font? IconFont => Icons.Get((float)Math.Round(Font.Size + 2)); // null when no icon font: draw a colored dot instead
 
-    private const int IconSize = 18;
+    private int IconSize => (int)(ItemHeight * 0.45); // 18px at the original 40px row
 
-    private static void DrawIcon(Graphics g, Rectangle rect, Item item, bool selected, bool invalid, ThemePalette p)
+    private void DrawIcon(Graphics g, Rectangle rect, Item item, bool selected, bool invalid, ThemePalette p)
     {
         var box = new Rectangle(rect.X + 15, rect.Y + ((rect.Height - IconSize) / 2), IconSize, IconSize);
         var color = invalid ? p.Invalid : selected ? item.Pip : p.TextMuted;

@@ -406,6 +406,7 @@ internal static class ThemeWalker
         if (cbx.DrawMode != DrawMode.Normal && !_drawnCombos.TryGetValue(cbx, out _))
             return;
         cbx.DrawMode = DrawMode.OwnerDrawVariable; // variable: list rows can be taller than the closed field
+        cbx.ItemHeight = cbx.Font.Height + 2; // closed height matches editable combos at the current font
         if (!_drawnCombos.TryAdd(cbx, _sentinel))
             return;
         cbx.DrawItem += DrawThemedComboItem;

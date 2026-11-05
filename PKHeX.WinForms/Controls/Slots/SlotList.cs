@@ -151,8 +151,8 @@ public partial class SlotList : UserControl, ISlotViewer<PictureBox>
     {
         BorderStyle = BorderStyle.None,
         DrawTile = true,
-        Width = s.Width + 2,
-        Height = s.Height + 2,
+        Width = PokeGrid.Tile(s.Width),
+        Height = PokeGrid.Tile(s.Height),
         AllowDrop = true,
         Margin = new Padding(PadPixels),
         Padding = Padding.Empty,

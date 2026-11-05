@@ -28,7 +28,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         SpaceOutRows();
         ApplyEditorGrid();
 
-        var font = FontUtil.GetPKXFont();
+        var font = FontUtil.GetPKXFont(11f * Theming.Theme.UiScale);
         TB_Nickname.Font = TB_OT.Font = TB_HT.Font = font;
 
         // Commonly reused Control arrays
@@ -128,7 +128,10 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             CB_Country, CB_SubRegion, CB_3DSReg, CB_Handler, CB_HTLanguage, TB_HomeTracker, CAL_ReceivedDateTime,
         ];
         foreach (var c in fields)
+        {
             c.Width = GridField;
+            c.Margin = Padding.Empty; // some carried a few px of designer offset, pushing them out of their row
+        }
 
         // Compound rows split the field width.
         TB_PID.Width = GridField - UC_Gender.Width - BTN_RerollPID.Width;
@@ -562,12 +565,12 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         if (!Unicode)
         {
             BTN_Shinytize.Text = Draw.ShinyDefault;
-            TB_Nickname.Font = TB_OT.Font = TB_HT.Font = GB_OT.Font;
+            TB_Nickname.Font = TB_OT.Font = TB_HT.Font = Font; // the editor font (GB_OT is now a bold section title)
         }
         else
         {
             BTN_Shinytize.Text = Draw.ShinyUnicode;
-            TB_Nickname.Font = TB_OT.Font = TB_HT.Font = FontUtil.GetPKXFont();
+            TB_Nickname.Font = TB_OT.Font = TB_HT.Font = FontUtil.GetPKXFont(11f * Theming.Theme.UiScale);
         }
     }
 

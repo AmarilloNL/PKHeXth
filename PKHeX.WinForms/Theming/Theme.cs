@@ -18,6 +18,9 @@ public static class Theme
 
     public static ThemePalette Current => _current;
 
+    /// <summary> Size of the main window's UI relative to the original PKHeX layout (fonts, fields, spacing, slot tiles). </summary>
+    public const float UiScale = 1.2f;
+
     /// <summary> Status / heatmap fill (stat colors, EV warnings): as-is in light mode, blended into the field in dark mode. </summary>
     public static Color Tint(Color c) => _current.IsDark ? _current.Mix(_current.Surface1, c, 0.42f) : c;
 

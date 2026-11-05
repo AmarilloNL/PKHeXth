@@ -55,7 +55,7 @@ internal sealed class BorderPainter : NativeWindow
             // Keep the designer height (the padding takes the place of the border), but give short boxes (20px hex
             // fields) the regular field height so rows line up.
             int height = tb.Height;
-            int min = tb.LogicalToDeviceUnits(23);
+            int min = Math.Max(tb.LogicalToDeviceUnits(23), tb.Font.Height + 9); // same height as a combo box at this font
             if (height < min)
             {
                 tb.Margin = tb.Margin with { Top = Math.Max(0, tb.Margin.Top - ((min - height) / 2)) };

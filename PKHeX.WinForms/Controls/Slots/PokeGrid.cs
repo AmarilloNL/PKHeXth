@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -48,25 +49,25 @@ public partial class PokeGrid : UserControl
             c.Dispose();
         Entries.Clear();
 
-        int colWidth = sizeW;
-        int rowHeight = sizeH;
+        int tileW = Tile(sizeW), tileH = Tile(sizeH);
+        int gap = (int)Math.Round(PokeGrid.gap * Theming.Theme.UiScale);
 
         Location = Location with { X = 0 }; // prevent auto-expanding parent if position changes (centered)
         for (int row = 0; row < height; row++)
         {
-            var y = padEdge + (row * (rowHeight + (2 * border) + gap));
+            var y = padEdge + (row * (tileH + gap));
             for (int column = 0; column < width; column++)
             {
                 var name = $"Pokémon Grid Row {row:00} Column {column:00}";
-                var x = padEdge + (column * (colWidth + (2 * border) + gap));
+                var x = padEdge + (column * (tileW + gap));
                 var pb = GetControl(sizeW, sizeH, name);
                 pb.Location = new Point(x, y);
                 Entries.Add(pb);
             }
         }
 
-        int w = (2 * padEdge) - gap + (width * (colWidth + (2 * border) + gap));
-        int h = (2 * padEdge) - gap + (height * (rowHeight + (2 * border) + gap));
+        int w = (2 * padEdge) - gap + (width * (tileW + gap));
+        int h = (2 * padEdge) - gap + (height * (tileH + gap));
         Size = new Size(w, h);
         Controls.AddRange(Entries.Cast<Control>().ToArray());
         ResumeLayout();
@@ -75,13 +76,16 @@ public partial class PokeGrid : UserControl
     // Wallpapers clash with the dark palette: dark mode shows plain slot tiles on the card instead.
     public void SetBackground(Image? img) => BackgroundImage = !DesignMode && Theming.Theme.Current.IsDark ? null : img;
 
+    /// <summary> Slot tile size for a sprite dimension: sprite plus its 1px inset, scaled with the UI (sprite stays centered). </summary>
+    public static int Tile(int sprite) => (int)Math.Round((sprite + (2 * border)) * Theming.Theme.UiScale);
+
     public static SelectablePictureBox GetControl(int width, int height, string name) => new()
     {
         AutoSize = false,
         SizeMode = PictureBoxSizeMode.CenterImage,
         BackColor = SlotUtil.GoodDataColor,
-        Width = width + (2 * border),
-        Height = height + (2 * border),
+        Width = Tile(width),
+        Height = Tile(height),
         Padding = Padding.Empty,
         Margin = Padding.Empty,
         BorderStyle = BorderStyle.None,
