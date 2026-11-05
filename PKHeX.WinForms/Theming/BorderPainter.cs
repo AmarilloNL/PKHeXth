@@ -52,10 +52,26 @@ internal sealed class BorderPainter : NativeWindow
         }
         if (tb.BorderStyle != BorderStyle.None)
         {
-            int height = tb.Height; // keep the designer height; the padding takes the place of the border
+            // Keep the designer height (the padding takes the place of the border), but give short boxes (20px hex
+            // fields) the regular field height so rows line up.
+            int height = tb.Height;
+            int min = tb.LogicalToDeviceUnits(23);
+            if (height < min)
+            {
+                tb.Margin = tb.Margin with { Top = Math.Max(0, tb.Margin.Top - ((min - height) / 2)) };
+                height = min;
+            }
             tb.AutoSize = false;
             tb.BorderStyle = BorderStyle.None;
             tb.Height = height;
+            // Values in small boxes (levels, IDs, IVs...) read better centered.
+            if (tb.Width < tb.LogicalToDeviceUnits(72))
+            {
+                if (tb is TextBox { TextAlign: HorizontalAlignment.Left } t)
+                    t.TextAlign = HorizontalAlignment.Center;
+                else if (tb is MaskedTextBox { TextAlign: HorizontalAlignment.Left } m)
+                    m.TextAlign = HorizontalAlignment.Center;
+            }
         }
         if (!Attached.TryGetValue(tb, out var painter))
         {
@@ -75,7 +91,8 @@ internal sealed class BorderPainter : NativeWindow
 
     private Padding ComputeInset(int width, int height)
     {
-        int text = _c.Font.Height;
+        // Measured glyph height (not the font's line spacing): tall fonts like the in-game one still center.
+        int text = TextRenderer.MeasureText("Ag", _c.Font, Size.Empty, TextFormatFlags.NoPadding).Height;
         int top = Math.Max(1, (height - text) / 2);
         int bottom = Math.Max(1, height - text - top);
         int side = _c.LogicalToDeviceUnits(width < _c.LogicalToDeviceUnits(72) ? 2 : 6); // small boxes (PID, IDs, levels) keep their digits

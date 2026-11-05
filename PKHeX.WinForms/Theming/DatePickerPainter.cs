@@ -57,7 +57,7 @@ internal sealed class DatePickerPainter : NativeWindow
         using (var pen = new Pen(border))
             g.DrawRectangle(pen, 0, 0, r.Width - 1, r.Height - 1);
 
-        int x = _d.LogicalToDeviceUnits(6);
+        int x = _d.LogicalToDeviceUnits(4); // same text inset as combo boxes and text boxes
         if (_d.ShowCheckBox)
         {
             int s = _d.LogicalToDeviceUnits(13);

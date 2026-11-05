@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.CompilerServices;
@@ -26,10 +27,33 @@ internal static class ThemeWalker
             Apply(child, p);
     }
 
+    private static readonly Dictionary<(string, float, FontStyle), Font> ModernFonts = [];
+
+    // Designer leftovers: Courier New hex fields become a modern code font at the same size (values still fit),
+    // tiny Microsoft Sans Serif text becomes the UI font at a readable size.
+    private static void ModernizeFont(Control c)
+    {
+        var f = c.Font;
+        (string Family, float Size)? target = f.Name switch
+        {
+            "Courier New" => (FontUtil.MonospaceFamily.Name, f.Size),
+            "Microsoft Sans Serif" => (Control.DefaultFont.Name, Math.Max(f.Size, Control.DefaultFont.Size)),
+            _ => null,
+        };
+        if (target is not { } t)
+            return;
+        var key = (t.Family, t.Size, f.Style);
+        if (!ModernFonts.TryGetValue(key, out var font))
+            ModernFonts[key] = font = new Font(t.Family, t.Size, f.Style);
+        c.Font = font;
+    }
+
     private static void ApplyToControl(Control c, ThemePalette p)
     {
         if (c.Tag is string tag && tag.Contains(OptOutTag))
             return;
+
+        ModernizeFont(c);
 
         if (c is IThemedControl themed)
         {
@@ -636,8 +660,8 @@ internal static class ThemeWalker
         dgv.ForeColor = p.TextPrimary;
         dgv.DefaultCellStyle.BackColor = p.Surface1;
         dgv.DefaultCellStyle.ForeColor = p.TextPrimary;
-        dgv.DefaultCellStyle.SelectionBackColor = p.Accent;
-        dgv.DefaultCellStyle.SelectionForeColor = p.AccentText;
+        dgv.DefaultCellStyle.SelectionBackColor = p.Mix(p.Surface1, p.TextPrimary, p.IsDark ? 0.16f : 0.12f); // neutral, like lists and menus
+        dgv.DefaultCellStyle.SelectionForeColor = p.TextPrimary;
         dgv.AlternatingRowsDefaultCellStyle.BackColor = p.Surface2;
         dgv.AlternatingRowsDefaultCellStyle.ForeColor = p.TextPrimary;
         dgv.ColumnHeadersDefaultCellStyle.BackColor = p.Surface0;
