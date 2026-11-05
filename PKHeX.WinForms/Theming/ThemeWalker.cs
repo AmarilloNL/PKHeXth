@@ -132,29 +132,26 @@ internal static class ThemeWalker
                 break;
 
             case TextBox tb:
-                tb.BackColor = p.Surface1;
-                tb.ForeColor = p.TextPrimary;
+                SetFieldColors(tb, p);
                 tb.BorderStyle = BorderStyle.FixedSingle;
                 BorderPainter.Attach(tb);
                 break;
 
             case MaskedTextBox mtb:
-                mtb.BackColor = p.Surface1;
-                mtb.ForeColor = p.TextPrimary;
+                SetFieldColors(mtb, p);
                 mtb.BorderStyle = BorderStyle.FixedSingle;
+                mtb.HidePromptOnLeave = true; // no "0____" placeholder underscores unless the field is being edited
                 BorderPainter.Attach(mtb);
                 break;
 
             case NumericUpDown nud:
-                nud.BackColor = p.Surface1;
-                nud.ForeColor = p.TextPrimary;
+                SetFieldColors(nud, p);
                 nud.BorderStyle = BorderStyle.FixedSingle;
                 BorderPainter.Attach(nud);
                 break;
 
             case ComboBox cbx:
-                cbx.BackColor = p.Surface1;
-                cbx.ForeColor = p.TextPrimary;
+                SetFieldColors(cbx, p);
                 cbx.FlatStyle = FlatStyle.Flat; // ComboPainter draws the frame; flat keeps the edit child on BackColor
                 if (cbx.MaxDropDownItems == 8) // designer default: show more of long lists
                     cbx.MaxDropDownItems = 14;
@@ -291,6 +288,22 @@ internal static class ThemeWalker
             StyleMenuItem(i, p);
     }
 
+    // Field surfaces of both palettes: a field still showing one of these (or a system color) has no status color.
+    private static readonly int[] DefaultFieldColors =
+    [
+        ThemePalette.CreateLight(Color.Empty).Surface1.ToArgb(), ThemePalette.CreateDark(Color.Empty).Surface1.ToArgb(),
+        Color.White.ToArgb(),
+    ];
+
+    // Restyles a field unless PKHeX gave it a status color (base stat heat, EV warning, invalid pick...).
+    private static void SetFieldColors(Control c, ThemePalette p)
+    {
+        if (!c.BackColor.IsSystemColor && Array.IndexOf(DefaultFieldColors, c.BackColor.ToArgb()) < 0)
+            return;
+        c.BackColor = p.Surface1;
+        c.ForeColor = p.TextPrimary;
+    }
+
     private static bool IsLightSystemColor(Color c) => c.IsSystemColor && c.ToKnownColor() is KnownColor.Control
         or KnownColor.ButtonFace or KnownColor.ButtonHighlight or KnownColor.Window or KnownColor.ControlLight
         or KnownColor.ControlLightLight or KnownColor.Info or KnownColor.Menu;
@@ -387,8 +400,12 @@ internal static class ThemeWalker
         var fore = !cb.Enabled ? p.TextDisabled : cb.ForeColor;
         using (var bg = new SolidBrush(edit ? cb.BackColor : p.Surface1))
             e.Graphics.FillRectangle(bg, e.Bounds);
-        if (selected) // rounded, accent-tinted row highlight
-            Shapes.Fill(e.Graphics, Rectangle.FromLTRB(e.Bounds.Left + 4, e.Bounds.Top + 2, e.Bounds.Right - 4, e.Bounds.Bottom - 2), 5, p.Mix(p.Surface1, p.Accent, p.IsDark ? 0.35f : 0.22f));
+        if (selected) // neutral rounded row highlight with a small accent marker (Windows 11 style)
+        {
+            var row = Rectangle.FromLTRB(e.Bounds.Left + 4, e.Bounds.Top + 2, e.Bounds.Right - 4, e.Bounds.Bottom - 2);
+            Shapes.Fill(e.Graphics, row, 5, p.Mix(p.Surface1, p.TextPrimary, p.IsDark ? 0.10f : 0.07f));
+            Shapes.Fill(e.Graphics, new Rectangle(row.Left, row.Top + (row.Height / 4), 3, row.Height / 2), 1, p.Accent);
+        }
         if ((uint)e.Index >= (uint)cb.Items.Count)
             return;
         var text = cb.GetItemText(cb.Items[e.Index]);

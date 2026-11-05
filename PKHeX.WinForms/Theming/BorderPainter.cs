@@ -70,9 +70,20 @@ internal sealed class BorderPainter : NativeWindow
         try
         {
             GetWindowRect(Handle, out var r);
+            int w = r.Right - r.Left, h = r.Bottom - r.Top;
             using var g = Graphics.FromHdc(hdc);
+            // Rounded like the combo boxes: paint the corners in the parent color, then a rounded 1px frame.
+            var frame = new Rectangle(0, 0, w - 1, h - 1);
+            using var path = Shapes.RoundRect(frame, Math.Min(_c.LogicalToDeviceUnits(4), h / 3));
+            using (var outside = new Region(new Rectangle(0, 0, w, h)))
+            {
+                outside.Exclude(path);
+                using var parent = new SolidBrush(_c.Parent?.BackColor is { A: 255 } pb ? pb : p.Surface0);
+                g.FillRegion(parent, outside);
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             using var pen = new Pen(color);
-            g.DrawRectangle(pen, 0, 0, r.Right - r.Left - 1, r.Bottom - r.Top - 1);
+            g.DrawPath(pen, path);
         }
         finally
         {

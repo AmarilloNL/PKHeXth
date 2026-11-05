@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using PKHeX.Core;
@@ -20,7 +21,20 @@ public partial class StatEditor : UserControl
         MT_Stats = [Stat_HP, Stat_ATK, Stat_DEF, Stat_SPE, Stat_SPA, Stat_SPD];
         L_Stats = [Label_HP, Label_ATK, Label_DEF, Label_SPE, Label_SPA, Label_SPD];
         MT_Base = [TB_BaseHP, TB_BaseATK, TB_BaseDEF, TB_BaseSPE, TB_BaseSPA, TB_BaseSPD];
+        foreach (var b in MT_Base) // base stat bar at the end of each stat row
+        {
+            // Disabled boxes get system-grey text; read-only keeps the value readable.
+            b.Enabled = true;
+            b.ReadOnly = true;
+            b.TabStop = false;
+            var bar = new StatBar { Margin = new Padding(8, 8, 0, 0), Size = new Size(44, 10) };
+            b.Parent!.Controls.Add(bar);
+            Bars.Add(bar);
+        }
 
+        TB_BST.Enabled = true;
+        TB_BST.ReadOnly = true;
+        TB_BST.TabStop = false;
         TB_BST.ResetForeColor();
         TB_IVTotal.ForeColor = TB_EVTotal.ForeColor = MT_EVs[0].ForeColor;
 
@@ -307,13 +321,11 @@ public partial class StatEditor : UserControl
         var tb = MT_IVs[index];
         if (value)
         {
-            tb.BackColor = StatHyperTrained;
-            if (StatHyperTrained.GetBrightness() > 0.5f)
-                tb.ForeColor = Color.Black;
+            SetFieldColor(tb, StatHyperTrained);
         }
         else
         {
-            tb.ResetBackColor();
+            ResetFieldColor(tb);
         }
     }
 
@@ -363,7 +375,7 @@ public partial class StatEditor : UserControl
         if (Entity is not IHyperTrain h)
         {
             foreach (var iv in MT_IVs)
-                iv.ResetBackColor();
+                ResetFieldColor(iv);
             return;
         }
 
@@ -382,20 +394,34 @@ public partial class StatEditor : UserControl
     private void UpdateEVTotals()
     {
         var evtotal = Entity.EVTotal;
-        var color = GetEVTotalColor(evtotal, TB_IVTotal.BackColor);
-        TB_EVTotal.BackColor = color;
-        TB_EVTotal.ForeColor = color.GetBrightness() > 0.5f ? Color.Black : TB_EVTotal.ForeColor;
+        if (GetEVTotalColor(evtotal) is { } color)
+            SetFieldColor(TB_EVTotal, color);
+        else
+            ResetFieldColor(TB_EVTotal);
         TB_EVTotal.Text = evtotal.ToString();
         EVTip.SetToolTip(TB_EVTotal, $"Remaining: {510 - evtotal}");
     }
 
-    private Color GetEVTotalColor(int evtotal, Color defaultColor) => EffortValues.GetGrade(evtotal) switch
+    private Color? GetEVTotalColor(int evtotal) => EffortValues.GetGrade(evtotal) switch
     {
         EffortValueGrade.Illegal => EVsInvalid, // Background turns Red
         EffortValueGrade.MaxLegal => EVsMaxed, // Maximum EVs
         EffortValueGrade.MaxEffective => EVsFishy, // Fishy EVs
-        _ => defaultColor,
+        _ => null,
     };
+
+    // Status colors are toned into the dark field in dark mode (see Theme.Tint); text follows the fill.
+    private static void SetFieldColor(Control tb, Color color)
+    {
+        tb.BackColor = Theming.Theme.Tint(color);
+        tb.ForeColor = Theming.Theme.TextOn(tb.BackColor);
+    }
+
+    private static void ResetFieldColor(Control tb)
+    {
+        tb.BackColor = Theming.Theme.Current.Surface1;
+        tb.ForeColor = Theming.Theme.Current.TextPrimary;
+    }
 
     public void UpdateStats()
     {
@@ -429,13 +455,16 @@ public partial class StatEditor : UserControl
             var value = pi.GetBaseStatValue(index);
             var s = MT_Base[index];
             s.Text = value.ToString("000");
-            s.BackColor = ColorUtil.ColorBaseStat(value);
+            ResetFieldColor(s); // the bar beside the row carries the stat color
+            Bars[index].SetValue(value, ColorUtil.ColorBaseStat(value));
             bst += value;
         }
 
         TB_BST.Text = bst.ToString("000");
-        TB_BST.BackColor = ColorUtil.ColorBaseStatTotal(bst);
+        ResetFieldColor(TB_BST);
     }
+
+    private readonly List<StatBar> Bars = [];
 
     public void UpdateRandomIVs(object sender, EventArgs e)
     {
@@ -621,19 +650,15 @@ public partial class StatEditor : UserControl
         var tb = MT_GVs[i];
         if (current > max)
         {
-            tb.BackColor = EVsInvalid;
-            if (EVsInvalid.GetBrightness() > 0.5f)
-                tb.ForeColor = Color.Black;
+            SetFieldColor(tb, EVsInvalid);
         }
         else if (current == max)
         {
-            tb.BackColor = StatHyperTrained;
-            if (StatHyperTrained.GetBrightness() > 0.5f)
-                tb.ForeColor = Color.Black;
+            SetFieldColor(tb, StatHyperTrained);
         }
         else
         {
-            tb.ResetBackColor();
+            ResetFieldColor(tb);
         }
     }
 

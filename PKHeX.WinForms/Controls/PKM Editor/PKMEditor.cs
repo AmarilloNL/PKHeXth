@@ -26,6 +26,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         InitializeComponent();
         InitializeSidebar();
         SpaceOutRows();
+        TidyOTMisc();
 
         var font = FontUtil.GetPKXFont();
         TB_Nickname.Font = TB_OT.Font = TB_HT.Font = font;
@@ -80,6 +81,36 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_EXP.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
         TB_Level.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
         TB_Friendship.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
+    }
+
+    // OT/Misc: one label column, one field width (two-part fields split it), left-aligned bold section titles.
+    // Values are designer units; the form's DPI scaling is applied afterwards.
+    private void TidyOTMisc()
+    {
+        const int label = 124, field = 160, gap = 4;
+        Control[] labels = [Label_OT, Label_Country, Label_SubRegion, Label_3DSRegion, L_CurrentHandler, Label_PrevOT,
+            L_LanguageHT, L_ExtraBytes, L_HomeTracker, Label_EncryptionConstant, L_ArrivedDateTime];
+        foreach (var l in labels)
+            l.Width = label;
+        foreach (var c in new Control[] { CB_Country, CB_SubRegion, CB_3DSReg, CB_Handler, CB_HTLanguage, TB_HomeTracker, CAL_ReceivedDateTime })
+            c.Width = field;
+        TB_OT.Width = field - UC_OTGender.Width;
+        TB_HT.Width = field - UC_HTGender.Width;
+
+        TB_ExtraByte.Width = 48;
+        TB_ExtraByte.Margin = new Padding(gap, 0, 0, 0);
+        CB_ExtraBytes.Width = field - gap - TB_ExtraByte.Width;
+        BTN_RerollEC.Margin = Padding.Empty;
+        TB_EC.Margin = new Padding(gap, 2, 0, 0);
+        TB_EC.Width = field - gap - BTN_RerollEC.Width;
+
+        // The trainer ID control has its own 40px labels; indent it so they line up with the column above.
+        TID_Trainer.Margin = new Padding(label - 40, 0, 0, 0);
+        foreach (var title in new[] { GB_OT, GB_nOT })
+        {
+            title.Font = new Font(title.Font, FontStyle.Bold);
+            title.Margin = new Padding(8, 14, 0, 4);
+        }
     }
 
     // Rows get a little breathing room.

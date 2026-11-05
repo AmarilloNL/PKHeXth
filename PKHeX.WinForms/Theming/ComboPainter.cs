@@ -66,7 +66,9 @@ internal sealed class ComboPainter : NativeWindow
         g.Clear(parent);
 
         bool focused = _c.ContainsFocus || _c.DroppedDown;
-        var fill = _c.Enabled ? _c.BackColor : p.Mix(_c.BackColor, parent, 0.5f);
+        // PKHeX flags invalid picks by tinting BackColor (e.g. salmon); keep the hint but tone it for dark mode.
+        var back = _c.BackColor == p.Surface1 ? p.Surface1 : Theme.Tint(_c.BackColor);
+        var fill = _c.Enabled ? back : p.Mix(back, parent, 0.5f);
         var border = !_c.Enabled ? p.Mix(p.Border, parent, 0.4f)
             : focused ? p.Accent
             : _hover ? p.Mix(p.Border, p.TextPrimary, 0.25f)
@@ -87,6 +89,6 @@ internal sealed class ComboPainter : NativeWindow
 
         var text = _c.SelectedIndex >= 0 ? _c.GetItemText(_c.SelectedItem) : _c.Text;
         var textRect = Rectangle.FromLTRB(_c.LogicalToDeviceUnits(narrow ? 5 : 8), 0, glyphRect.Left, r.Height);
-        TextRenderer.DrawText(g, text, _c.Font, textRect, _c.Enabled ? _c.ForeColor : p.TextDisabled,
+        TextRenderer.DrawText(g, text, _c.Font, textRect, _c.Enabled ? (back == p.Surface1 ? _c.ForeColor : Theme.TextOn(back)) : p.TextDisabled,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }}

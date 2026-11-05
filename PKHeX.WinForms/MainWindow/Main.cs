@@ -65,6 +65,7 @@ public partial class Main : Form, Theming.IThemedControl
     {
         BackColor = palette.Canvas;
         ForeColor = palette.TextPrimary;
+        Draw.LoadBrushes(); // move list colors follow the palette
         splitContainer1.Panel1.Invalidate();
         splitContainer1.Panel2.Invalidate();
     }

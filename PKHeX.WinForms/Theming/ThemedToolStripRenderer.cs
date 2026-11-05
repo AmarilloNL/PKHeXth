@@ -56,12 +56,12 @@ internal sealed class ThemedToolStripRenderer : ToolStripProfessionalRenderer
         if (item.Owner is MenuStrip)
         {
             var r = Rectangle.Inflate(bounds, -1, -3);
-            Shapes.Fill(e.Graphics, r, HoverRadius, open ? p.Mix(p.Surface1, p.Accent, 0.22f) : p.HoverSurface);
+            Shapes.Fill(e.Graphics, r, HoverRadius, p.Mix(p.Canvas, p.TextPrimary, open ? 0.12f : 0.08f));
             return;
         }
 
         var row = Rectangle.FromLTRB(bounds.Left + Inset, bounds.Top + 1, bounds.Right - Inset, bounds.Bottom - 1);
-        Shapes.Fill(e.Graphics, row, HoverRadius, p.Mix(p.Surface1, p.Accent, p.IsDark ? 0.22f : 0.14f));
+        Shapes.Fill(e.Graphics, row, HoverRadius, p.Mix(p.Surface1, p.TextPrimary, p.IsDark ? 0.10f : 0.07f)); // neutral, like Windows 11 menus
     }
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)

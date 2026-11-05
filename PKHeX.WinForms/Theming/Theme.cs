@@ -17,6 +17,12 @@ public static class Theme
     private static bool _applying;
 
     public static ThemePalette Current => _current;
+
+    /// <summary> Status / heatmap fill (stat colors, EV warnings): as-is in light mode, blended into the field in dark mode. </summary>
+    public static Color Tint(Color c) => _current.IsDark ? _current.Mix(_current.Surface1, c, 0.42f) : c;
+
+    /// <summary> Readable text color on <paramref name="back"/>. </summary>
+    public static Color TextOn(Color back) => back.GetBrightness() > 0.55f ? Color.Black : _current.IsDark ? _current.TextPrimary : Color.White;
     public static ThemeSettings Settings => _settings;
 
     public static event EventHandler? Changed;
