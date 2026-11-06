@@ -20,7 +20,13 @@ public static class Theme
     public static ThemePalette Current => _current;
 
     /// <summary> Size of the main window's UI relative to the original PKHeX layout (fonts, fields, spacing, slot tiles). </summary>
-    public const float UiScale = 1.2f;
+    public const float DefaultUiScale = 1.2f;
+
+    /// <summary> Current zoom of the main window; changes when the window is resized. </summary>
+    public static float UiScale { get; internal set; } = DefaultUiScale;
+
+    /// <summary> A point size picked at the default scale, at the current zoom. </summary>
+    public static float Pt(float size) => size * UiScale / DefaultUiScale;
 
     /// <summary> Status / heatmap fill (stat colors, EV warnings): as-is in light mode, blended into the field in dark mode. </summary>
     public static Color Tint(Color c) => _current.IsDark ? _current.Mix(_current.Surface1, c, 0.42f) : c;

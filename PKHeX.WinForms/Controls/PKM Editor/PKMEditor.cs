@@ -264,6 +264,18 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     // Short tabs spread their rows over the page height (up to ~20px between rows), so they don't leave the bottom of
     // the card empty. Recomputed on every layout pass; base margins are remembered per row.
     private readonly Dictionary<Control, Padding> BaseMargins = [];
+
+    // The window zoom scales every control; the cached row margins have to follow, or rows keep their old spacing
+    // (zoomed out, the last rows fall off the bottom of the card).
+    protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+    {
+        base.ScaleControl(factor, specified);
+        foreach (var (c, m) in BaseMargins.ToArray())
+        {
+            BaseMargins[c] = new Padding((int)Math.Round(m.Left * factor.Width), (int)Math.Round(m.Top * factor.Height),
+                (int)Math.Round(m.Right * factor.Width), (int)Math.Round(m.Bottom * factor.Height));
+        }
+    }
     private bool Justifying;
 
     private void JustifyRows(FlowLayoutPanel flp, bool center = false)
@@ -287,7 +299,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             var lines = rows.GroupBy(r => r.Top - r.Margin.Top).ToList();
             int natural = flp.Padding.Vertical + lines.Sum(l => l.Max(r => r.Height + BaseMargins[r].Vertical));
             int slack = flp.ClientSize.Height - natural - (int)(12 * Theming.Theme.UiScale);
-            int extra = Math.Clamp(slack / (lines.Count * 2), 0, (int)(10 * Theming.Theme.UiScale));
+            // Spare height spreads the rows out; too little height (a zoomed-out window) tightens them, down to no
+            // margin at all, so the last rows stay on the card.
+            int extra = Math.Min(slack / (lines.Count * 2), (int)(10 * Theming.Theme.UiScale));
             foreach (var line in lines)
             {
                 var items = line.OrderBy(r => r.Left).ToList();
@@ -297,7 +311,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
                 foreach (var r in items)
                 {
                     var b = BaseMargins[r];
-                    var m = new Padding(left >= 0 && r == items[0] ? left : b.Left, b.Top + extra, b.Right, b.Bottom + extra);
+                    var m = new Padding(left >= 0 && r == items[0] ? left : b.Left, Math.Max(0, b.Top + extra), b.Right, Math.Max(0, b.Bottom + extra));
                     if (r.Margin != m)
                         r.Margin = m;
                 }

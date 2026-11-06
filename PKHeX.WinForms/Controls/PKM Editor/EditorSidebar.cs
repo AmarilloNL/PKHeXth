@@ -104,6 +104,14 @@ public sealed class EditorSidebar : Control, IThemedControl
         return -1;
     }
 
+    /// <summary> Relabels every item from the translation key "Tab_{Name}" (the keys the old tab strip used). </summary>
+    public void Translate(Func<string, string, string> translate)
+    {
+        for (int i = 0; i < _items.Count; i++)
+            _items[i] = _items[i] with { Text = translate($"Tab_{_items[i].Name}", _items[i].Text) };
+        Invalidate();
+    }
+
     public void SetItemInvalid(string name, bool invalid)
     {
         bool changed = invalid ? _invalid.Add(name) : _invalid.Remove(name);

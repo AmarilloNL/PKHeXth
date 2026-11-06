@@ -74,6 +74,99 @@ public partial class Main : Form, Theming.IThemedControl
         ScaleFonts(this, factor);
     }
 
+    // Resizing the window zooms the whole UI to fit, the same way the startup scale-up does.
+    // Each zoom rescales the current layout, so many zoom steps can drift a pixel or two.
+    // TODO: rebuild from the base layout if that drift ever shows.
+    private Size ZoomBase; // client size at the default scale
+    private float SplitRatio; // editor pane share of the width, kept through zooms
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        ZoomBase = ClientSize; // after DPI auto-scaling
+        SplitRatio = (float)splitContainer1.SplitterDistance / splitContainer1.Width;
+        splitContainer1.SplitterMoved += (_, _) =>
+        {
+            if (MouseButtons == MouseButtons.Left) // the user dragged the divider (not a resize clamping it)
+                SplitRatio = (float)splitContainer1.SplitterDistance / splitContainer1.Width;
+        };
+        MinimumSize = new Size((int)(Width * 0.7f), (int)(Height * 0.7f)); // below ~70% of the default zoom fields wrap and text gets unreadable
+    }
+
+    private FormWindowState LastWindowState;
+
+    // While dragging the window edge the docked panes re-lay out on every mouse move; compose the whole window
+    // off-screen during the drag so that does not flicker. Only for the drag: composited painting slows hover effects.
+    protected override void OnResizeBegin(EventArgs e)
+    {
+        base.OnResizeBegin(e);
+        SetComposited(true);
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        ZoomToFit();
+        SetComposited(false);
+    }
+
+    private void SetComposited(bool on)
+    {
+        const int GWL_EXSTYLE = -20, WS_EX_COMPOSITED = 0x02000000;
+        var style = GetWindowLong(Handle, GWL_EXSTYLE);
+        SetWindowLong(Handle, GWL_EXSTYLE, on ? style | WS_EX_COMPOSITED : style & ~WS_EX_COMPOSITED);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int index);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        if (WindowState == LastWindowState)
+            return; // dragging: wait for ResizeEnd
+        LastWindowState = WindowState;
+        ZoomToFit(); // maximize / restore
+    }
+
+    private void ZoomToFit()
+    {
+        if (ZoomBase.IsEmpty || WindowState == FormWindowState.Minimized)
+            return;
+        var target = Theming.Theme.DefaultUiScale * Math.Min((float)ClientSize.Width / ZoomBase.Width, (float)ClientSize.Height / ZoomBase.Height);
+        var factor = target / Theming.Theme.UiScale;
+        if (Math.Abs(factor - 1) < 0.02f)
+            return;
+
+        Theming.Theme.UiScale = target;
+        SendMessage(Handle, WM_SETREDRAW, 0, 0); // no half-scaled frames: repaint once when everything is done
+        try
+        {
+            var split = splitContainer1;
+            SuspendLayout();
+            foreach (Control c in Controls)
+                c.Scale(new SizeF(factor, factor)); // children only: the form keeps the size the user picked
+            ScaleFonts(this, factor);
+            PKME_Tabs.UpdateUnicode(GenderSymbols); // the in-game font is re-created at the new size
+            ResumeLayout(true);
+
+            // The editor pane's minimum width is in pixels: zoom it too, then keep the editor/box split ratio.
+            split.Panel1MinSize = (int)(split.Panel1MinSize * factor);
+            split.SplitterDistance = Math.Max(split.Panel1MinSize, (int)(SplitRatio * split.Width));
+            C_SAV.FitBox(); // the box grid fit itself mid-zoom, before its tiles were rescaled
+        }
+        finally
+        {
+            SendMessage(Handle, WM_SETREDRAW, 1, 0);
+            RedrawWindow(Handle, IntPtr.Zero, IntPtr.Zero, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        }
+    }
+
+    private const int WM_SETREDRAW = 0x000B;
+    private const uint RDW_INVALIDATE = 0x1, RDW_ERASE = 0x4, RDW_ALLCHILDREN = 0x80, RDW_UPDATENOW = 0x100, RDW_FRAME = 0x400;
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int w, int l);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool RedrawWindow(IntPtr hWnd, IntPtr rect, IntPtr rgn, uint flags);
+
     private static readonly HashSet<string> InstalledFonts = [.. FontFamily.Families.Select(f => f.Name)];
 
     private static void ScaleFonts(Control c, float factor)
@@ -814,9 +907,9 @@ public partial class Main : Form, Theming.IThemedControl
 
         Theming.Theme.OnSaveFileLoaded(sav);
         topHeader.SetSave(sav, !string.IsNullOrWhiteSpace(path));
-        SL_SavePath.Text = string.IsNullOrWhiteSpace(path) ? "In-memory save" : path;
+        LoadedPath = path;
         SL_Version.Text = sav.Version.ToString();
-        SL_Language.Text = ((LanguageID)sav.Language).ToString();
+        UpdateStatusText();
 
         if (C_SAV.SAV.State.Edited && Settings.SlotWrite.ModifyUnset)
         {
@@ -1040,6 +1133,16 @@ public partial class Main : Form, Theming.IThemedControl
     }
 
     // Language Translation
+    private string? LoadedPath;
+
+    // Status bar texts that follow the program language (the save path itself is shown as-is).
+    private void UpdateStatusText()
+    {
+        SL_SavePath.Text = string.IsNullOrWhiteSpace(LoadedPath) ? WinFormsTranslator.Tr("Main.SL_InMemory", "In-memory save") : LoadedPath;
+        var language = (LanguageID)C_SAV.SAV.Language;
+        SL_Language.Text = WinFormsTranslator.Tr($"LanguageID.{language}", language.ToString());
+    }
+
     private void ChangeMainLanguage(object sender, EventArgs e)
     {
         var index = CB_MainLanguage.SelectedIndex;
@@ -1059,6 +1162,7 @@ public partial class Main : Form, Theming.IThemedControl
 
         SizeCP.ResetSizeLocalizations(lang);
         PKME_Tabs.SizeCP.TryResetStats();
+        UpdateStatusText();
 
         if (sav is not FakeSaveFile)
         {
@@ -1210,6 +1314,7 @@ public partial class Main : Form, Theming.IThemedControl
         if (menu is not null)
             menu.Enabled = pk.Species != 0 || HaX; // Species
 
+        SlotUtil.SetSubject(pb, pk);
         pb.Image = pk.Sprite(C_SAV.SAV);
         if (pb.BackColor == SlotUtil.BadDataColor)
             pb.BackColor = SlotUtil.GoodDataColor;

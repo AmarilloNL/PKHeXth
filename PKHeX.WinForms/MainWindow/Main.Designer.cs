@@ -530,11 +530,10 @@ namespace PKHeX.WinForms
             Controls.Add(splitContainer1);
             Controls.Add(topHeader);
             Controls.Add(statusStrip);
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
             Icon = Properties.Resources.Icon;
             KeyPreview = true;
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            MaximizeBox = false;
             Name = "Main";
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             Text = "PKHeX";

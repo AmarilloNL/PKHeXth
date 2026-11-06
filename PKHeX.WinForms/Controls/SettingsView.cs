@@ -21,7 +21,7 @@ public sealed class SettingsView : UserControl
     private readonly List<Category> _categories = [];
     private readonly List<(object Owner, Row Row)> _custom = [];
     private readonly EditorSidebar _nav = new() { ItemHeight = 36, Dock = DockStyle.Top };
-    private readonly TextBox _search = new() { PlaceholderText = "Search settings  (Ctrl+F)", Dock = DockStyle.Top, Name = "TB_Search" };
+    private readonly TextBox _search = new() { PlaceholderText = WinFormsTranslator.Tr("SettingsEditor.TB_Search", "Search settings  (Ctrl+F)"), Dock = DockStyle.Top, Name = "TB_Search" };
     private readonly Panel _navPanel;
     private readonly Panel _scroller = new() { Dock = DockStyle.Fill, AutoScroll = true };
     private readonly TableLayoutPanel _page = new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2 };
@@ -130,12 +130,12 @@ public sealed class SettingsView : UserControl
             }
             if (pd.GetValue(_root) is not { } value)
                 continue;
-            _categories.Add(new Category(pd.Name, CategoryTitle(pd.Name), value, null));
+            _categories.Add(new Category(pd.Name, Title(pd.Name, CategoryTitle(pd.Name)), value, null));
         }
 
         // Loose properties on the root: one category per PropertyGrid category, or a single "General".
         if (own.Count == 1)
-            _categories.Insert(0, new Category("General", _categories.Count == 0 ? "Settings" : "General", _root, own[0]));
+            _categories.Insert(0, new Category("General", _categories.Count == 0 ? WinFormsTranslator.Tr("SettingsEditor.Settings", "Settings") : WinFormsTranslator.Tr("SettingsEditor.General", "General"), _root, own[0]));
         else
             _categories.InsertRange(0, own.Select(c => new Category(c, Friendly(c), _root, c)));
 
@@ -154,7 +154,7 @@ public sealed class SettingsView : UserControl
         {
             var c = _categories[Math.Max(0, _nav.SelectedIndex)];
             var rows = GetRows(c.Value, null, c.OwnCategory).ToList();
-            Render(c.Title, Plural(rows.Count(r => r.Editor is not null), "setting"), rows);
+            Render(c.Title, Count(rows.Count(r => r.Editor is not null), "SettingsEditor.CountSetting", "{0} setting", "SettingsEditor.CountSettings", "{0} settings"), rows);
             return;
         }
 
@@ -168,10 +168,15 @@ public sealed class SettingsView : UserControl
             results.AddRange(matches);
         }
         int count = results.Count(r => r.Editor is not null);
-        Render($"Results for “{query}”", count == 0 ? "No settings match. Try a different word." : Plural(count, "match", "matches"), results);
+        Render(string.Format(WinFormsTranslator.Tr("SettingsEditor.Results", "Results for “{0}”"), query), count == 0 ? WinFormsTranslator.Tr("SettingsEditor.NoResults", "No settings match. Try a different word.") : Count(count, "SettingsEditor.CountMatch", "{0} match", "SettingsEditor.CountMatches", "{0} matches"), results);
     }
 
-    private static string Plural(int n, string one, string? many = null) => $"{n} {(n == 1 ? one : many ?? one + "s")}";
+    private static string Count(int n, string oneKey, string one, string manyKey, string many)
+        => string.Format(n == 1 ? WinFormsTranslator.Tr(oneKey, one) : WinFormsTranslator.Tr(manyKey, many), n);
+
+    /// <summary> Setting / category title from the language file ("SettingsTitle.{name}"), else the English <paramref name="fallback"/>. </summary>
+    private static string Title(string name, string fallback) => WinFormsTranslator.Tr($"SettingsTitle.{name}", fallback);
+    private static string Title(PropertyDescriptor pd) => Title(pd.Name, Friendly(pd.DisplayName));
 
     /// <param name="ownCategory">When set, only loose (non-group) properties of that PropertyGrid category are listed.</param>
     private IEnumerable<Row> GetRows(object owner, string? query, string? ownCategory)
@@ -191,7 +196,7 @@ public sealed class SettingsView : UserControl
                 var sub = GetRows(child, query, null).ToList();
                 if (sub.Count == 0)
                     continue;
-                yield return new Row(Friendly(pd.DisplayName), "", null);
+                yield return new Row(Title(pd), "", null);
                 foreach (var r in sub)
                     yield return r;
                 continue;
@@ -199,7 +204,7 @@ public sealed class SettingsView : UserControl
             if (ownCategory is not null && (pd.Category ?? "Misc") != ownCategory)
                 continue;
 
-            var title = Friendly(pd.DisplayName);
+            var title = Title(pd);
             var desc = pd.Description ?? string.Empty;
             if (!Matches(query, title, desc) && !Matches(query, pd.Name, string.Empty))
                 continue;
@@ -361,8 +366,8 @@ public sealed class SettingsView : UserControl
         else
         {
             // Lists, brushes and other complex values keep the classic grid editor.
-            var b = new Button { Text = "Edit…", AutoSize = true, Padding = new Padding(10, 2, 10, 2), AccessibleName = pd.DisplayName };
-            b.Click += (_, _) => ShowGrid(Friendly(pd.DisplayName), owner);
+            var b = new Button { Text = WinFormsTranslator.Tr("SettingsEditor.B_Edit", "Edit…"), AutoSize = true, Padding = new Padding(10, 2, 10, 2), AccessibleName = pd.DisplayName };
+            b.Click += (_, _) => ShowGrid(Title(pd), owner);
             editor = b;
         }
 
@@ -401,7 +406,7 @@ public sealed class SettingsView : UserControl
         }
         catch (Exception ex)
         {
-            WinFormsUtil.Error($"Could not change {Friendly(pd.DisplayName)}.", ex.Message);
+            WinFormsUtil.Error($"Could not change {Title(pd)}.", ex.Message);
         }
     }
 
@@ -473,7 +478,7 @@ public sealed class SettingsView : UserControl
 
     private sealed record EnumChoice(object Value)
     {
-        public override string ToString() => Friendly(Value.ToString() ?? string.Empty);
+        public override string ToString() => WinFormsTranslator.Tr($"{Value.GetType().Name}.{Value}", Friendly(Value.ToString() ?? string.Empty));
     }
 
     /// <summary> Label that keeps its own primary/muted color through theme passes. </summary>

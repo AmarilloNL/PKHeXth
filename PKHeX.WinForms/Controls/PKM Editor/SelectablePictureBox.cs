@@ -103,80 +103,145 @@ public class SelectablePictureBox : PictureBox
         Shapes.Fill(pe.Graphics, rc, LogicalToDeviceUnits(6), Color.Empty, Theme.Current.Accent, 2f);
     }
 
-    // Slot sprites sit on a mostly empty canvas; tiles show the visible part (Pokémon plus its item / shiny marks)
-    // enlarged to fill the tile. Rendered once per sprite and tile size.
+    /// <summary>
+    /// The plain Pokémon of <see cref="PictureBox.Image"/> (same canvas, without item / shiny / legality marks). When set,
+    /// the tile zooms the Pokémon on its own and keeps the marks at the sprite's own scale. Set it before the image.
+    /// </summary>
+    public Image? Subject { get; set; }
+
+    // Rendered once per sprite and tile size.
     private Bitmap? _tileSprite;
-    private Image? _tileSource;
+    private Image? _tileSource, _tileSubject;
     private Size _tileSize;
 
     private Bitmap GetTileSprite(Bitmap src)
     {
-        if (_tileSprite is not null && ReferenceEquals(_tileSource, src) && _tileSize == Size)
+        if (_tileSprite is not null && ReferenceEquals(_tileSource, src) && ReferenceEquals(_tileSubject, Subject) && _tileSize == Size)
             return _tileSprite;
         _tileSprite?.Dispose();
-        (_tileSource, _tileSize) = (src, Size);
+        (_tileSource, _tileSubject, _tileSize) = (src, Subject, Size);
 
-        var box = OpaqueBounds(src);
-        int pad = LogicalToDeviceUnits(6);
-        float canvasFit = Math.Min((float)Width / src.Width, (float)Height / src.Height);
-        float contentFit = Math.Min((float)(Width - (2 * pad)) / box.Width, (float)(Height - (2 * pad)) / box.Height);
-        // Same zoom for most Pokémon (so sizes stay comparable); large ones shrink to stay inside the tile.
-        float scale = Math.Max(Math.Min(canvasFit * 1.4f, contentFit), Math.Min(1f, canvasFit));
-
-        int w = Math.Max(1, (int)Math.Round(box.Width * scale));
-        int h = Math.Max(1, (int)Math.Round(box.Height * scale));
-        var result = new Bitmap(w, h);
+        var result = new Bitmap(Math.Max(1, Width), Math.Max(1, Height));
         using var g = Graphics.FromImage(result);
-        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        int k = (int)Math.Ceiling(scale);
-        if (k <= 1)
+        var full = new Rectangle(Point.Empty, src.Size);
+        float canvasFit = Math.Min((float)Width / src.Width, (float)Height / src.Height);
+        var canvas = Centered(src.Size, canvasFit); // the whole sprite canvas, fitted to the tile
+
+        if (Subject is not Bitmap subject || subject.Size != src.Size)
         {
-            g.DrawImage(src, new Rectangle(0, 0, w, h), box, GraphicsUnit.Pixel);
+            DrawPixelArt(g, src, full, canvas);
+            return _tileSprite = result;
         }
-        else
-        {
-            // Pixel art: enlarge by a whole factor with hard edges first, then smooth down to the final size.
-            using var up = new Bitmap(box.Width * k, box.Height * k);
-            using (var gu = Graphics.FromImage(up))
-            {
-                gu.InterpolationMode = InterpolationMode.NearestNeighbor;
-                gu.PixelOffsetMode = PixelOffsetMode.Half;
-                gu.DrawImage(src, new Rectangle(0, 0, up.Width, up.Height), box, GraphicsUnit.Pixel);
-            }
-            g.DrawImage(up, new Rectangle(0, 0, w, h));
-        }
+
+        // Every Pokémon gets the same zoom (so their sizes stay comparable); large ones shrink to stay inside the tile.
+        // The marks stay where and how big they are on the canvas, so none is cropped or blown up.
+        var box = OpaqueBounds(subject);
+        int pad = LogicalToDeviceUnits(6);
+        float contentFit = Math.Min((float)(Width - (2 * pad)) / box.Width, (float)(Height - (2 * pad)) / box.Height);
+        float zoom = Math.Max(Math.Min(canvasFit * 1.4f, contentFit), Math.Min(1f, canvasFit));
+        var (under, over) = SplitMarks(src, subject);
+        DrawPixelArt(g, under, full, canvas); // backgrounds / stripes
+        DrawPixelArt(g, subject, box, Centered(box.Size, zoom));
+        DrawPixelArt(g, over, full, canvas); // item, shiny star, flags
+        under.Dispose();
+        over.Dispose();
         return _tileSprite = result;
     }
 
-    /// <summary> Bounding box of the pixels that are not (nearly) transparent; the whole image if there are none. </summary>
-    private static Rectangle OpaqueBounds(Bitmap bmp)
+    private Rectangle Centered(Size size, float scale)
     {
-        var full = new Rectangle(Point.Empty, bmp.Size);
-        var data = bmp.LockBits(full, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        int w = Math.Max(1, (int)Math.Round(size.Width * scale));
+        int h = Math.Max(1, (int)Math.Round(size.Height * scale));
+        return new Rectangle((Width - w) / 2, (Height - h) / 2, w, h);
+    }
+
+    /// <summary> Pixel art at any size: enlarge by a whole factor with hard edges, then smooth to the exact size (even pixels, no blur). </summary>
+    private static void DrawPixelArt(Graphics g, Bitmap src, Rectangle from, Rectangle to)
+    {
+        int k = (int)Math.Ceiling(Math.Max((float)to.Width / from.Width, (float)to.Height / from.Height));
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        if (k <= 1)
+        {
+            g.DrawImage(src, to, from, GraphicsUnit.Pixel);
+            return;
+        }
+        using var up = new Bitmap(from.Width * k, from.Height * k);
+        using (var gu = Graphics.FromImage(up))
+        {
+            gu.InterpolationMode = InterpolationMode.NearestNeighbor;
+            gu.PixelOffsetMode = PixelOffsetMode.Half;
+            gu.DrawImage(src, new Rectangle(Point.Empty, up.Size), from, GraphicsUnit.Pixel);
+        }
+        g.DrawImage(up, to);
+    }
+
+    /// <summary>
+    /// Pixels where the full sprite differs from the plain Pokémon: the marks. Translucent ones (tera / encounter
+    /// backgrounds and stripes) go under the Pokémon, opaque ones (item, shiny star, flags) over it.
+    /// </summary>
+    private static (Bitmap Under, Bitmap Over) SplitMarks(Bitmap full, Bitmap subject)
+    {
+        var a = ReadPixels(full);
+        var b = ReadPixels(subject);
+        var under = new int[a.Length];
+        var over = new int[a.Length];
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i] == b[i])
+                continue;
+            if (((uint)a[i] >> 24) >= 200)
+                over[i] = a[i];
+            else
+                under[i] = a[i];
+        }
+        return (ToBitmap(under, full.Width, full.Height), ToBitmap(over, full.Width, full.Height));
+    }
+
+    private static int[] ReadPixels(Bitmap bmp)
+    {
+        var data = bmp.LockBits(new Rectangle(Point.Empty, bmp.Size), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
         try
         {
-            int left = bmp.Width, top = bmp.Height, right = -1, bottom = -1;
-            var row = new byte[data.Stride];
+            var px = new int[bmp.Width * bmp.Height];
             for (int y = 0; y < bmp.Height; y++)
-            {
-                Marshal.Copy(data.Scan0 + (y * data.Stride), row, 0, row.Length);
-                for (int x = 0; x < bmp.Width; x++)
-                {
-                    if (row[(x * 4) + 3] < 16)
-                        continue;
-                    left = Math.Min(left, x);
-                    right = Math.Max(right, x);
-                    top = Math.Min(top, y);
-                    bottom = y;
-                }
-            }
-            return right < 0 ? full : Rectangle.FromLTRB(left, top, right + 1, bottom + 1);
+                Marshal.Copy(data.Scan0 + (y * data.Stride), px, y * bmp.Width, bmp.Width);
+            return px;
         }
         finally
         {
             bmp.UnlockBits(data);
         }
+    }
+
+    private static Bitmap ToBitmap(int[] px, int width, int height)
+    {
+        var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        var data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+        for (int y = 0; y < height; y++)
+            Marshal.Copy(px, y * width, data.Scan0 + (y * data.Stride), width);
+        bmp.UnlockBits(data);
+        return bmp;
+    }
+
+    /// <summary> Bounding box of the pixels that are not (nearly) transparent; the whole image if there are none. </summary>
+    private static Rectangle OpaqueBounds(Bitmap bmp)
+    {
+        var px = ReadPixels(bmp);
+        int left = bmp.Width, top = bmp.Height, right = -1, bottom = -1;
+        for (int y = 0; y < bmp.Height; y++)
+        {
+            for (int x = 0; x < bmp.Width; x++)
+            {
+                if (((uint)px[(y * bmp.Width) + x] >> 24) < 16)
+                    continue;
+                left = Math.Min(left, x);
+                right = Math.Max(right, x);
+                top = Math.Min(top, y);
+                bottom = y;
+            }
+        }
+        return right < 0 ? new Rectangle(Point.Empty, bmp.Size) : Rectangle.FromLTRB(left, top, right + 1, bottom + 1);
     }
 
     protected override void Dispose(bool disposing)

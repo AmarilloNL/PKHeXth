@@ -23,8 +23,8 @@ public partial class SettingsEditor : Form
         var view = new SettingsView(obj);
         if (obj is PKHeXSettings s)
         {
-            view.AddCustomRow(s.Startup, "Blank save version",
-                "Game used for the empty save created when PKHeX starts without a save file.", () => CreateBlankEditor(s));
+            view.AddCustomRow(s.Startup, WinFormsTranslator.Tr("SettingsTitle.BlankSaveVersion", "Blank save version"),
+                WinFormsTranslator.Tr("LocalizedDescription.BlankSaveVersion", "Game used for the empty save created when PKHeX starts without a save file."), () => CreateBlankEditor(s));
             B_Reset.Click += (_, _) => DeleteSettings();
         }
         else

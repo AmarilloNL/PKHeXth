@@ -293,7 +293,10 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
                 var pb = UpdateSlot(i);
                 var current = pb.Image;
                 if (current is not null)
+                {
+                    SlotUtil.SetSubject(pb, null); // faded: no longer matches the plain Pokémon, show it as-is
                     pb.Image = ImageUtil.ChangeOpacity(current, 0.6);
+                }
             }
         }
 
@@ -1236,11 +1239,13 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     };
 
     // The box grid fills the tab: tiles grow into the free space under the box selector row.
-    private void FitBox()
+    internal void FitBox()
     {
         var grid = Box.BoxPokeGrid;
         int pad = LogicalToDeviceUnits(8);
         grid.FitTo(new Size(Tab_Box.ClientSize.Width - (2 * pad), Tab_Box.ClientSize.Height - grid.Top - (2 * pad)));
+        grid.Left = 0;
+        Box.Width = grid.Width; // shrink too when the window zooms out (RecenterControls only ever grows the box)
         Box.RecenterControls();
         Box.HorizontallyCenter(Tab_Box);
         Box.Top = pad;

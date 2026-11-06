@@ -119,9 +119,9 @@ public sealed class AccentStatusChip : Control, IThemedControl
 
     private string GetLabel() => _status switch
     {
-        ChipStatus.Legal => LegalText,
-        ChipStatus.Warning => WarningText,
-        ChipStatus.Invalid => InvalidText,
+        ChipStatus.Legal => WinFormsTranslator.Tr("Main.Chip_Legal", LegalText),
+        ChipStatus.Warning => WinFormsTranslator.Tr("Main.Chip_Fishy", WarningText),
+        ChipStatus.Invalid => WinFormsTranslator.Tr("Main.Chip_Invalid", InvalidText),
         _ => UnknownText,
     };
 

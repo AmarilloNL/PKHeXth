@@ -22,10 +22,10 @@ public sealed class TopHeader : Panel, IThemedControl
     private Color _gameColor;
 
     /// <summary> Primary action shown when no save file is open. </summary>
-    public Button OpenSave { get; } = new() { Text = "Open save file…", AutoSize = true, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderOpen" };
+    public Button OpenSave { get; } = new() { Text = "Open save file…", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderOpen" };
 
     /// <summary> Primary action shown once a save file is open. </summary>
-    public Button ExportSave { get; } = new() { Text = "Export save…", AutoSize = true, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderExport", Visible = false };
+    public Button ExportSave { get; } = new() { Text = "Export save…", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Tag = ThemeWalker.PrimaryTag, Padding = new Padding(10, 1, 10, 1), Name = "B_HeaderExport", Visible = false };
 
     public TopHeader()
     {
@@ -56,7 +56,7 @@ public sealed class TopHeader : Panel, IThemedControl
         if (sav is null || !fromFile)
         {
             _game = _ot = _ids = string.Empty;
-            AccessibleDescription = "No save loaded";
+            AccessibleDescription = WinFormsTranslator.Tr("Main.SL_NoSave", "No save loaded");
         }
         else
         {
@@ -70,8 +70,15 @@ public sealed class TopHeader : Panel, IThemedControl
     }
 
     private int LogoSize => LogicalToDeviceUnits(24);
-    private Font WordmarkFont => _wordmarkFont ??= new Font(Font.FontFamily, 11f, FontStyle.Bold);
+    private Font WordmarkFont => _wordmarkFont ??= new Font(Font.FontFamily, Theme.Pt(11f), FontStyle.Bold);
     private Font? _wordmarkFont;
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        _wordmarkFont?.Dispose();
+        _wordmarkFont = null; // re-created at the new zoom
+    }
 
     private int BrandRight => LogicalToDeviceUnits(LogoInset) + LogoSize + LogicalToDeviceUnits(8)
                               + TextRenderer.MeasureText(Wordmark, WordmarkFont).Width;
@@ -162,8 +169,8 @@ public sealed class TopHeader : Panel, IThemedControl
         right -= LogicalToDeviceUnits(16);
         left += LogicalToDeviceUnits(16);
 
-        using var otFont = new Font(Font.FontFamily, 9.5f, FontStyle.Bold);
-        using var badgeFont = new Font(Font.FontFamily, 8f, FontStyle.Bold);
+        using var otFont = new Font(Font.FontFamily, Theme.Pt(9.5f), FontStyle.Bold);
+        using var badgeFont = new Font(Font.FontFamily, Theme.Pt(8f), FontStyle.Bold);
         var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
         int idsW = TextRenderer.MeasureText(g, _ids, Font, Size.Empty, flags).Width;
         int otW = TextRenderer.MeasureText(g, _ot, otFont, Size.Empty, flags).Width;

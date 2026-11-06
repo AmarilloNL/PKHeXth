@@ -391,6 +391,7 @@ internal static class ThemeWalker
             cbx.SelectedIndexChanged += (_, _) => { if (cbx.IsHandleCreated) cbx.BeginInvoke(Unselect); };
             cbx.Leave += (_, _) => Unselect();
             cbx.VisibleChanged += (_, _) => Unselect();
+            cbx.SizeChanged += (_, _) => { if (cbx.IsHandleCreated) cbx.BeginInvoke(Unselect); }; // resizing re-selects the text too
         }
         // Values loaded before theming (sub-form constructors) are still selected; clear once the control is up.
         if (cbx.IsHandleCreated)
@@ -409,8 +410,9 @@ internal static class ThemeWalker
         cbx.ItemHeight = cbx.Font.Height + 2; // closed height matches editable combos at the current font
         if (!_drawnCombos.TryAdd(cbx, _sentinel))
             return;
+        cbx.FontChanged += (_, _) => cbx.ItemHeight = cbx.Font.Height + 2; // window zoom
         cbx.DrawItem += DrawThemedComboItem;
-        cbx.MeasureItem += (_, e) => e.ItemHeight = cbx.LogicalToDeviceUnits(26);
+        cbx.MeasureItem += (_, e) => e.ItemHeight = (int)(cbx.LogicalToDeviceUnits(26) * Theme.UiScale / Theme.DefaultUiScale);
     }
 
     private static void DrawThemedComboItem(object? sender, DrawItemEventArgs e)
