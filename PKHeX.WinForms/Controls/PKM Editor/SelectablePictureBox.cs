@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -63,8 +64,9 @@ public class SelectablePictureBox : PictureBox
         bool wallpaper = Parent?.BackgroundImage is not null;
         var tile = new Rectangle(0, 0, Width - 1, Height - 1);
         int radius = LogicalToDeviceUnits(6);
-        var fill = wallpaper ? Color.FromArgb(40, p.Surface0) : p.Surface1;
-        var border = wallpaper ? Color.FromArgb(90, Color.White) : p.Border;
+        // Strong enough to see every empty tile on light wallpapers too (a white edge vanished on Scarlet/Violet's).
+        var fill = wallpaper ? Color.FromArgb(110, p.Surface1) : p.Surface1;
+        var border = wallpaper ? Color.FromArgb(200, p.Border) : p.Border;
         Shapes.Fill(g, tile, radius, fill, border);
 
         if (BackColor.A != 0) // slot state tint (e.g. invalid data)
@@ -139,6 +141,8 @@ public class SelectablePictureBox : PictureBox
         int pad = LogicalToDeviceUnits(6);
         float contentFit = Math.Min((float)(Width - (2 * pad)) / box.Width, (float)(Height - (2 * pad)) / box.Height);
         float zoom = Math.Max(Math.Min(canvasFit * 1.4f, contentFit), Math.Min(1f, canvasFit));
+        if (zoom >= 2)
+            zoom = MathF.Floor(zoom); // whole pixels: sharp, every pixel the same size
         var (under, over) = SplitMarks(src, subject);
         DrawPixelArt(g, under, full, canvas); // backgrounds / stripes
         DrawPixelArt(g, subject, box, Centered(box.Size, zoom));
@@ -177,25 +181,62 @@ public class SelectablePictureBox : PictureBox
     }
 
     /// <summary>
-    /// Pixels where the full sprite differs from the plain Pokémon: the marks. Translucent ones (tera / encounter
-    /// backgrounds and stripes) go under the Pokémon, opaque ones (item, shiny star, flags) over it.
+    /// Pixels where the full sprite differs from the plain Pokémon: the marks. Tera / encounter backgrounds and stripes
+    /// go under the Pokémon, the other marks (item, shiny star, flags) over it if opaque.
     /// </summary>
     private static (Bitmap Under, Bitmap Over) SplitMarks(Bitmap full, Bitmap subject)
     {
         var a = ReadPixels(full);
         var b = ReadPixels(subject);
+        int w = full.Width;
         var under = new int[a.Length];
         var over = new int[a.Length];
-        for (int i = 0; i < a.Length; i++)
+        var counts = new Dictionary<int, int>();
+        for (int row = 0; row < a.Length; row += w)
         {
-            if (a[i] == b[i])
-                continue;
-            if (((uint)a[i] >> 24) >= 200)
-                over[i] = a[i];
-            else
-                under[i] = a[i];
+            // A background or stripe is one color across the row (opaque stripes too). It only paints see-through
+            // pixels, so behind the Pokémon it is missing: fill it in, or a Pokémon-shaped hole shows next to the zoom.
+            counts.Clear();
+            int open = 0; // pixels beside the Pokémon
+            for (int i = row; i < row + w; i++)
+            {
+                if ((uint)b[i] >> 24 != 0)
+                    continue;
+                open++;
+                if (a[i] != b[i])
+                    counts[a[i]] = counts.GetValueOrDefault(a[i]) + 1;
+            }
+            int fill = 0;
+            foreach (var (color, n) in counts)
+            {
+                if (n * 2 > open && n >= 4)
+                    fill = color;
+            }
+
+            for (int i = row; i < row + w; i++)
+            {
+                uint body = (uint)b[i] >> 24;
+                if (body != 0)
+                {
+                    under[i] = fill;
+                    if (body == 255 && a[i] != b[i]) // on the Pokémon only an opaque mark (item, star) differs
+                        over[i] = a[i];
+                }
+                else if (a[i] == b[i])
+                {
+                    // unchanged
+                }
+                else if (a[i] == fill || (uint)a[i] >> 24 < 200)
+                {
+                    under[i] = a[i];
+                }
+                else
+                {
+                    over[i] = a[i];
+                }
+            }
         }
-        return (ToBitmap(under, full.Width, full.Height), ToBitmap(over, full.Width, full.Height));
+        return (ToBitmap(under, w, full.Height), ToBitmap(over, w, full.Height));
     }
 
     private static int[] ReadPixels(Bitmap bmp)

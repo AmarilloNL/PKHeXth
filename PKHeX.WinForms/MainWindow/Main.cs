@@ -44,12 +44,10 @@ public partial class Main : Form, Theming.IThemedControl
 
         // Host the drag-out sprite inside the hero card so its transparent background shows the card, not the pane.
         PN_HeroCard.Controls.Add(dragout);
-        dragout.ZoomSprite = true; // the sprite fills the card (see the resize below)
-        PN_HeroCard.SizeChanged += (_, _) => dragout.Size = PN_HeroCard.ClientSize - new Size(8, 8);
-        dragout.Size = PN_HeroCard.ClientSize - new Size(8, 8);
-        EventHandler centerDragout = (_, _) => dragout.Location = new Point((PN_HeroCard.Width - dragout.Width) / 2, (PN_HeroCard.Height - dragout.Height) / 2);
-        dragout.SizeChanged += centerDragout;
-        centerDragout(null, EventArgs.Empty);
+        dragout.ZoomSprite = true; // the sprite fills the card
+        // Docked, not sized by hand: a window zoom scaled a hand-sized sprite a second time, past the card's edges.
+        PN_HeroCard.Padding = new Padding(4);
+        dragout.Dock = DockStyle.Fill;
         if (Settings.Display.DisableScalingDpi)
             AutoScaleMode = AutoScaleMode.Font;
         ScaleUp(Theming.Theme.UiScale);
@@ -144,6 +142,7 @@ public partial class Main : Form, Theming.IThemedControl
         {
             var split = splitContainer1;
             SuspendLayout();
+            SuspendAutoComplete(this); // resizing rebuilds them too
             foreach (Control c in Controls)
                 c.Scale(new SizeF(factor, factor)); // children only: the form keeps the size the user picked
             ScaleFonts(this, factor);
@@ -169,7 +168,13 @@ public partial class Main : Form, Theming.IThemedControl
 
     private static readonly HashSet<string> InstalledFonts = [.. FontFamily.Families.Select(f => f.Name)];
 
-    private static void ScaleFonts(Control c, float factor)
+    private static void ScaleFonts(Control root, float factor)
+    {
+        SuspendAutoComplete(root);
+        ScaleFontsTree(root, factor);
+    }
+
+    private static void ScaleFontsTree(Control c, float factor)
     {
         // Fonts outside the system collection (PKHeX's private in-game font) cannot be re-created at another size for
         // native text boxes, so those keep their original setting.
@@ -177,7 +182,45 @@ public partial class Main : Form, Theming.IThemedControl
         if (own && InstalledFonts.Contains(c.Font.FontFamily.Name))
             c.Font = new Font(c.Font.FontFamily, c.Font.Size * factor, c.Font.Style);
         foreach (Control child in c.Controls)
-            ScaleFonts(child, factor);
+            ScaleFontsTree(child, factor);
+    }
+
+    // A font change rebuilds every combo box with autocomplete (20-60 ms each, over a second for the whole editor).
+    // Switch autocomplete off for the zoom and back on one combo at a time in the background; it is only used once
+    // the user types into a combo.
+    private static readonly Dictionary<ComboBox, AutoCompleteMode> PendingAutoComplete = [];
+    private static readonly System.Windows.Forms.Timer AutoCompleteTimer = new() { Interval = 15 };
+
+    private static void SuspendAutoComplete(Control c)
+    {
+        if (c is ComboBox { IsHandleCreated: true, AutoCompleteMode: not AutoCompleteMode.None } cb)
+        {
+            PendingAutoComplete[cb] = cb.AutoCompleteMode;
+            cb.AutoCompleteMode = AutoCompleteMode.None;
+        }
+        foreach (Control child in c.Controls)
+            SuspendAutoComplete(child);
+        if (PendingAutoComplete.Count != 0 && !AutoCompleteTimer.Enabled)
+        {
+            AutoCompleteTimer.Tick -= RestoreAutoComplete;
+            AutoCompleteTimer.Tick += RestoreAutoComplete;
+            AutoCompleteTimer.Start();
+        }
+    }
+
+    private static void RestoreAutoComplete(object? sender, EventArgs e)
+    {
+        foreach (var (cb, mode) in PendingAutoComplete)
+        {
+            if (cb.Focused || cb.DroppedDown)
+                continue; // turning it back on rebuilds the combo: not while the user is in it
+            PendingAutoComplete.Remove(cb);
+            if (!cb.IsDisposed)
+                cb.AutoCompleteMode = mode;
+            return; // one per tick, so the window stays responsive
+        }
+        if (PendingAutoComplete.Count == 0)
+            AutoCompleteTimer.Stop();
     }
 
     public void ApplyTheme(Theming.ThemePalette palette)
