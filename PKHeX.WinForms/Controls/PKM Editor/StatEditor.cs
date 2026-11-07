@@ -21,6 +21,14 @@ public partial class StatEditor : UserControl
         MT_Stats = [Stat_HP, Stat_ATK, Stat_DEF, Stat_SPE, Stat_SPA, Stat_SPD];
         L_Stats = [Label_HP, Label_ATK, Label_DEF, Label_SPE, Label_SPA, Label_SPD];
         MT_Base = [TB_BaseHP, TB_BaseATK, TB_BaseDEF, TB_BaseSPE, TB_BaseSPA, TB_BaseSPD];
+
+        // The randomize buttons size to their text, which a zoomed-out window cannot shrink as far as the panel:
+        // keep them at the panel's top and let the panel grow to hold them, so they are never clipped.
+        FLP_PKMEditors.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        FLP_PKMEditors.Top = 0;
+        EventHandler fitButtons = (_, _) => PAN_BTN.MinimumSize = new Size(FLP_PKMEditors.Right, FLP_PKMEditors.Bottom);
+        FLP_PKMEditors.SizeChanged += fitButtons;
+        FLP_PKMEditors.LocationChanged += fitButtons;
         foreach (var b in MT_Base) // base stat bar at the end of each stat row
         {
             // Disabled boxes get system-grey text; read-only keeps the value readable.
